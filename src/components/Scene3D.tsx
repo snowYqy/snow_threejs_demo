@@ -1,26 +1,16 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { FloorPlan } from './FloorPlan';
-import type { HomeData } from '../types/homeData';
-
-interface Scene3DProps {
-  homeData: HomeData;
-  selectedRoom: string | null;
-  hoveredRoom: string | null;
-  onRoomSelect: (roomId: string | null) => void;
-  onRoomHover: (roomId: string | null) => void;
-}
+import { useHomeStore } from '../store/useHomeStore';
 
 /**
  * Scene3D组件 - 3D场景容器
  */
-export const Scene3D: React.FC<Scene3DProps> = ({
-  homeData,
-  selectedRoom,
-  hoveredRoom,
-  onRoomSelect,
-  onRoomHover,
-}) => {
+export const Scene3D: React.FC = () => {
+  const homeData = useHomeStore((state) => state.homeData);
+
+  if (!homeData) return null;
+
   return (
     <Canvas
       camera={{
@@ -29,7 +19,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         near: 0.1,
         far: 1000,
       }}
-      style={{ width: '100%', height: '100%' }}
+      className="w-full h-full"
     >
       <ambientLight intensity={0.6} />
       <directionalLight position={[10, 20, 10]} intensity={0.8} castShadow />
@@ -47,14 +37,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         dampingFactor={0.05}
       />
       
-      <FloorPlan
-        homeData={homeData}
-        selectedRoom={selectedRoom}
-        hoveredRoom={hoveredRoom}
-        onRoomClick={(roomId) => onRoomSelect(selectedRoom === roomId ? null : roomId)}
-        onRoomHover={onRoomHover}
-      />
-      
+      <FloorPlan />
       <gridHelper args={[20, 20, '#888888', '#444444']} />
     </Canvas>
   );

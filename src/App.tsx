@@ -1,63 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Scene3D from './components/Scene3D';
 import UI from './components/UI';
-import { loadHomeData, getRoomNames } from './data/homeDataLoader';
-import type { HomeData } from './types/homeData';
-import './App.css';
+import { useHomeStore } from './store/useHomeStore';
 
-/**
- * App组件 - 数据驱动的3D智能家居控制系统
- */
 function App() {
-  const [homeData, setHomeData] = useState<HomeData | null>(null);
-  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
-  const [hoveredRoom, setHoveredRoom] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { homeData, loading, error, fetchHomeData } = useHomeStore();
 
-  // 加载户型数据
   useEffect(() => {
-    loadHomeData('/homeData.json')
-      .then(data => {
-        setHomeData(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, []);
+    fetchHomeData();
+  }, [fetchHomeData]);
 
   if (loading) {
     return (
-      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#fff', fontSize: '1.5rem' }}>加载中...</p>
+      <div className="relative w-full h-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+        <p className="text-white text-2xl font-medium">加载中...</p>
       </div>
     );
   }
 
   if (error || !homeData) {
     return (
-      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#ff6b6b', fontSize: '1.5rem' }}>加载失败: {error}</p>
+      <div className="relative w-full h-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+        <p className="text-red-300 text-2xl font-medium">加载失败: {error}</p>
       </div>
     );
   }
 
-  const roomNames = getRoomNames(homeData.rooms);
-
   return (
-    <div className="app-container">
-      <div className="canvas-container">
-        <Scene3D
-          homeData={homeData}
-          selectedRoom={selectedRoom}
-          hoveredRoom={hoveredRoom}
-          onRoomSelect={setSelectedRoom}
-          onRoomHover={setHoveredRoom}
-        />
+    <div className="relative w-full h-full overflow-hidden">
+      <div className="absolute inset-0">
+        <Scene3D />
       </div>
-      <UI selectedRoom={selectedRoom} roomNames={roomNames} />
+      <UI />
     </div>
   );
 }

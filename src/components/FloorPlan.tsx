@@ -1,36 +1,20 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Room } from './Room';
-import type { HomeData } from '../types/homeData';
+import { useHomeStore } from '../store/useHomeStore';
 import { calculateOuterWalls, getWallGeometry } from '../data/homeDataLoader';
 
-interface FloorPlanProps {
-  homeData: HomeData;
-  selectedRoom: string | null;
-  hoveredRoom: string | null;
-  onRoomClick: (roomId: string) => void;
-  onRoomHover: (roomId: string | null) => void;
-}
-
 /**
- * FloorPlan组件 - 根据数据渲染整个户型
+ * FloorPlan组件 - 根据store数据渲染整个户型
  */
-export const FloorPlan: React.FC<FloorPlanProps> = ({
-  homeData,
-  selectedRoom,
-  hoveredRoom,
-  onRoomClick,
-  onRoomHover,
-}) => {
-  const { meta, rooms, walls } = homeData;
+export const FloorPlan: React.FC = () => {
+  const homeData = useHomeStore((state) => state.homeData);
+  const selectedRoom = useHomeStore((state) => state.selectedRoom);
+  const hoveredRoom = useHomeStore((state) => state.hoveredRoom);
+  const toggleRoom = useHomeStore((state) => state.toggleRoom);
+  const hoverRoom = useHomeStore((state) => state.hoverRoom);
+
+  const { meta, rooms, walls } = homeData!;
   const { wallHeight, wallThickness } = meta;
-
-  const handleRoomClick = useCallback((roomId: string) => {
-    onRoomClick(roomId);
-  }, [onRoomClick]);
-
-  const handleRoomHover = useCallback((roomId: string | null) => {
-    onRoomHover(roomId);
-  }, [onRoomHover]);
 
   // 计算外墙边界
   const outerBounds = useMemo(() => calculateOuterWalls(rooms), [rooms]);
@@ -55,8 +39,8 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
           wallHeight={wallHeight}
           isSelected={selectedRoom === room.id}
           isHovered={hoveredRoom === room.id}
-          onClick={() => handleRoomClick(room.id)}
-          onHover={(hovered) => handleRoomHover(hovered ? room.id : null)}
+          onClick={() => toggleRoom(room.id)}
+          onHover={(hovered) => hoverRoom(hovered ? room.id : null)}
         />
       ))}
 
@@ -71,25 +55,19 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
         );
       })}
 
-      {/* 外墙 - 北 */}
+      {/* 外墙 */}
       <mesh position={[centerX, wallHeight / 2, minZ - wallThickness / 2]}>
         <boxGeometry args={[totalWidth + wallThickness * 2, wallHeight, wallThickness]} />
         <meshStandardMaterial color={wallColor} transparent opacity={wallOpacity} />
       </mesh>
-
-      {/* 外墙 - 南 */}
       <mesh position={[centerX, wallHeight / 2, maxZ + wallThickness / 2]}>
         <boxGeometry args={[totalWidth + wallThickness * 2, wallHeight, wallThickness]} />
         <meshStandardMaterial color={wallColor} transparent opacity={wallOpacity} />
       </mesh>
-
-      {/* 外墙 - 西 */}
       <mesh position={[minX - wallThickness / 2, wallHeight / 2, centerZ]}>
         <boxGeometry args={[wallThickness, wallHeight, totalDepth]} />
         <meshStandardMaterial color={wallColor} transparent opacity={wallOpacity} />
       </mesh>
-
-      {/* 外墙 - 东 */}
       <mesh position={[maxX + wallThickness / 2, wallHeight / 2, centerZ]}>
         <boxGeometry args={[wallThickness, wallHeight, totalDepth]} />
         <meshStandardMaterial color={wallColor} transparent opacity={wallOpacity} />
