@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { HomeData } from '../types/homeData';
-import { loadHomeData, getRoomNames } from '../data/homeDataLoader';
+import type { HomeData, DeviceData } from '../types/homeData';
+import { loadHomeData, getRoomNames, getAllDevices } from '../data/homeDataLoader';
 
 interface HomeState {
   // 数据状态
@@ -18,6 +18,11 @@ interface HomeState {
   selectRoom: (roomId: string | null) => void;
   toggleRoom: (roomId: string) => void;
   hoverRoom: (roomId: string | null) => void;
+  toggleDevice: (roomId: string, deviceId: string) => void;
+  setDeviceState: (roomId: string, deviceId: string, isOn: boolean) => void;
+  toggleAllDevicesInRoom: (roomId: string, isOn: boolean) => void;
+  getDevicesByRoom: (roomId: string) => DeviceData[];
+  getAllDevicesList: () => Array<DeviceData & { roomId: string; roomName: string }>;
   reset: () => void;
 }
 
@@ -62,6 +67,75 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   // 悬停房间
   hoverRoom: (roomId) => {
     set({ hoveredRoom: roomId });
+  },
+
+  // 切换设备开关
+  toggleDevice: (roomId, deviceId) => {
+    const { homeData } = get();
+    if (!homeData) return;
+
+    const newRooms = homeData.rooms.map(room => {
+      if (room.id !== roomId) return room;
+      return {
+        ...room,
+        devices: room.devices.map(device => {
+          if (device.id !== deviceId) return device;
+          return { ...device, isOn: !device.isOn };
+        }),
+      };
+    });
+
+    set({ homeData: { ...homeData, rooms: newRooms } });
+  },
+
+  // 设置设备状态
+  setDeviceState: (roomId, deviceId, isOn) => {
+    const { homeData } = get();
+    if (!homeData) return;
+
+    const newRooms = homeData.rooms.map(room => {
+      if (room.id !== roomId) return room;
+      return {
+        ...room,
+        devices: room.devices.map(device => {
+          if (device.id !== deviceId) return device;
+          return { ...device, isOn };
+        }),
+      };
+    });
+
+    set({ homeData: { ...homeData, rooms: newRooms } });
+  },
+
+  // 切换房间内所有设备
+  toggleAllDevicesInRoom: (roomId, isOn) => {
+    const { homeData } = get();
+    if (!homeData) return;
+
+    const newRooms = homeData.rooms.map(room => {
+      if (room.id !== roomId) return room;
+      return {
+        ...room,
+        devices: room.devices.map(device => ({ ...device, isOn })),
+      };
+    });
+
+    set({ homeData: { ...homeData, rooms: newRooms } });
+  },
+
+  // 获取房间内的设备
+  getDevicesByRoom: (roomId) => {
+    const { homeData } = get();
+    if (!homeData) return [];
+    const room = homeData.rooms.find(r => r.id === roomId);
+    return room?.devices ?? [];
+  },
+
+  // 获取所有设备列表
+  getAllDevicesList: () => {
+    const { homeData } = get();
+    if (!homeData) return [];
+    return getAllDevices(homeData.rooms);
   },
 
   // 重置状态

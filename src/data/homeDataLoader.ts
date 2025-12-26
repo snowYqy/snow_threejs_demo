@@ -1,5 +1,5 @@
-import type { HomeData, RoomData, FurnitureData, WallData } from '../types/homeData';
-import { DEFAULT_FURNITURE_HEIGHT } from '../types/homeData';
+import type { HomeData, RoomData, DeviceData, WallData } from '../types/homeData';
+import { DEFAULT_DEVICE_SIZE } from '../types/homeData';
 
 /**
  * 加载户型数据
@@ -13,38 +13,57 @@ export async function loadHomeData(url: string = '/homeData.json'): Promise<Home
 }
 
 /**
- * 计算房间的3D位置 (添加Y轴高度)
+ * 计算房间的3D位置
  */
 export function getRoomPosition(room: RoomData, wallHeight: number): [number, number, number] {
   return [room.position[0], wallHeight / 2, room.position[1]];
 }
 
 /**
- * 计算房间的3D尺寸 (添加高度)
+ * 计算房间的3D尺寸
  */
 export function getRoomSize(room: RoomData, wallHeight: number): [number, number, number] {
   return [room.size[0], wallHeight, room.size[1]];
 }
 
 /**
- * 计算家具的3D偏移位置
+ * 计算设备的3D偏移位置
  */
-export function getFurnitureOffset(
-  furniture: FurnitureData,
+export function getDeviceOffset(
+  device: DeviceData,
   wallHeight: number
 ): [number, number, number] {
-  const height = furniture.height ?? DEFAULT_FURNITURE_HEIGHT[furniture.type];
-  // Y轴: 从地板开始放置 (-wallHeight/2 是地板位置，+height/2 是家具中心)
-  const y = -wallHeight / 2 + height / 2 + 0.05; // 0.05是地板厚度
-  return [furniture.offset[0], y, furniture.offset[1]];
+  const defaults = DEFAULT_DEVICE_SIZE[device.type];
+  const height = device.height ?? defaults.height;
+  
+  // 特殊处理：灯具和空调挂在天花板
+  if (device.type === 'light') {
+    return [device.offset[0], wallHeight / 2 - 0.1, device.offset[1]];
+  }
+  if (device.type === 'ac') {
+    return [device.offset[0], wallHeight / 2 - 0.3, device.offset[1]];
+  }
+  if (device.type === 'curtain') {
+    return [device.offset[0], 0, device.offset[1]];
+  }
+  if (device.type === 'tv') {
+    return [device.offset[0], -wallHeight / 2 + 1.2, device.offset[1]];
+  }
+  
+  // 其他设备放在地面
+  const y = -wallHeight / 2 + height / 2 + 0.05;
+  return [device.offset[0], y, device.offset[1]];
 }
 
 /**
- * 计算家具的3D尺寸
+ * 计算设备的3D尺寸
  */
-export function getFurnitureSize(furniture: FurnitureData): [number, number, number] {
-  const height = furniture.height ?? DEFAULT_FURNITURE_HEIGHT[furniture.type];
-  return [furniture.size[0], height, furniture.size[1]];
+export function getDeviceSize(device: DeviceData): [number, number, number] {
+  const defaults = DEFAULT_DEVICE_SIZE[device.type];
+  const width = device.size?.[0] ?? defaults.width;
+  const depth = device.size?.[1] ?? defaults.depth;
+  const height = device.height ?? defaults.height;
+  return [width, height, depth];
 }
 
 /**
@@ -58,7 +77,6 @@ export function getWallGeometry(
   const [x1, z1] = wall.from;
   const [x2, z2] = wall.to;
   
-  // 计算墙壁长度和方向
   let length: number;
   let isHorizontal: boolean;
   
@@ -72,7 +90,6 @@ export function getWallGeometry(
     isHorizontal = Math.abs(dx) > Math.abs(dz);
   }
   
-  // 计算中心位置
   const centerX = (x1 + x2) / 2;
   const centerZ = (z1 + z2) / 2;
   
@@ -116,4 +133,17 @@ export function getRoomNames(rooms: RoomData[]): Record<string, string> {
     acc[room.id] = room.name;
     return acc;
   }, {} as Record<string, string>);
+}
+
+/**
+ * 获取所有设备列表
+ */
+export function getAllDevices(rooms: RoomData[]): Array<DeviceData & { roomId: string; roomName: string }> {
+  const devices: Array<DeviceData & { roomId: string; roomName: string }> = [];
+  rooms.forEach(room => {
+    room.devices.forEach(device => {
+      devices.push({ ...device, roomId: room.id, roomName: room.name });
+    });
+  });
+  return devices;
 }

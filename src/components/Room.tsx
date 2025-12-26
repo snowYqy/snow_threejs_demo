@@ -1,7 +1,7 @@
 import { useRef, useMemo } from 'react';
 import { Mesh, Color } from 'three';
 import { Edges } from '@react-three/drei';
-import { Furniture } from './Furniture';
+import { Device } from './Device';
 import type { RoomData } from '../types/homeData';
 import { getRoomPosition, getRoomSize } from '../data/homeDataLoader';
 
@@ -15,7 +15,7 @@ interface RoomProps {
 }
 
 /**
- * Room组件 - 根据数据渲染房间
+ * Room组件 - 渲染房间和智能设备
  */
 export const Room: React.FC<RoomProps> = ({
   data,
@@ -68,9 +68,14 @@ export const Room: React.FC<RoomProps> = ({
         {edgeColor && <Edges color={edgeColor} linewidth={2} threshold={15} />}
       </mesh>
 
-      {/* 渲染家具 */}
-      {data.furniture.map((f, index) => (
-        <Furniture key={`${data.id}-furniture-${index}`} data={f} wallHeight={wallHeight} />
+      {/* 渲染智能设备 */}
+      {data.devices.map((device) => (
+        <Device 
+          key={device.id} 
+          data={device} 
+          wallHeight={wallHeight}
+          roomId={data.id}
+        />
       ))}
     </group>
   );

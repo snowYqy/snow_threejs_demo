@@ -1,18 +1,5 @@
 /**
- * 户型数据驱动渲染规则
- * 
- * ## 坐标系统
- * - X轴: 东西方向 (正向为东)
- * - Y轴: 高度方向 (正向为上) - 由系统自动计算
- * - Z轴: 南北方向 (正向为南)
- * - position: [x, z] 表示房间中心在地面上的位置
- * - size: [width, depth] 表示房间的宽度和深度
- * 
- * ## 渲染规则
- * 1. 房间(Room): 根据position和size绘制地板，高度由meta.wallHeight决定
- * 2. 家具(Furniture): 根据offset相对于房间中心放置，高度根据type自动计算
- * 3. 墙壁(Wall): 根据from/to坐标绘制，支持门窗开口
- * 4. 外墙: 自动根据所有房间边界计算生成
+ * 户型数据驱动渲染规则 - 智能家居版
  */
 
 /** 元数据配置 */
@@ -24,19 +11,29 @@ export interface HomeMeta {
   wallThickness: number;
 }
 
-/** 家具类型 */
-export type FurnitureType = 
-  | 'sofa' | 'bed' | 'table' | 'chair' | 'desk' 
-  | 'cabinet' | 'toilet' | 'sink' | 'stove' | 'fridge';
+/** 智能设备类型 */
+export type DeviceType = 
+  | 'light'        // 灯具
+  | 'ac'           // 空调
+  | 'fan'          // 落地扇
+  | 'curtain'      // 窗帘
+  | 'tv'           // 电视
+  | 'speaker'      // 音箱
+  | 'humidifier'   // 加湿器
+  | 'purifier'     // 空气净化器
+  | 'heater';      // 取暖器
 
-/** 家具配置 */
-export interface FurnitureData {
-  type: FurnitureType;
+/** 智能设备配置 */
+export interface DeviceData {
+  id: string;
+  type: DeviceType;
+  name: string;
   offset: [number, number];  // [x, z] 相对于房间中心
-  size: [number, number];    // [width, depth]
-  height?: number;           // 可选高度，默认根据type计算
+  size?: [number, number];   // [width, depth] 可选
+  height?: number;           // 可选高度
   rotation?: number;         // 旋转角度(度)
-  color: string;
+  isOn?: boolean;            // 开关状态
+  color?: string;            // 自定义颜色
 }
 
 /** 房间类型 */
@@ -49,28 +46,28 @@ export interface RoomData {
   id: string;
   name: string;
   type: RoomType;
-  position: [number, number];  // [x, z] 房间中心位置
-  size: [number, number];      // [width, depth]
+  position: [number, number];
+  size: [number, number];
   color: string;
-  furniture: FurnitureData[];
+  devices: DeviceData[];
 }
 
-/** 开口类型(门/窗) */
+/** 墙壁开口 */
 export interface WallOpening {
   type: 'door' | 'window';
-  position: number;  // 0-1, 在墙上的相对位置
+  position: number;
   width: number;
-  height?: number;   // 窗户高度
+  height?: number;
 }
 
 /** 墙壁配置 */
 export interface WallData {
   id: string;
-  from: [number, number];      // 起点 [x, z]
-  to: [number, number];        // 终点 [x, z]
-  length?: number;             // 可选长度(用于单点+方向定义)
-  direction?: 'x' | 'z';       // 方向
-  openings?: WallOpening[];    // 门窗开口
+  from: [number, number];
+  to: [number, number];
+  length?: number;
+  direction?: 'x' | 'z';
+  openings?: WallOpening[];
 }
 
 /** 完整户型数据 */
@@ -80,16 +77,28 @@ export interface HomeData {
   walls: WallData[];
 }
 
-/** 默认家具高度映射 */
-export const DEFAULT_FURNITURE_HEIGHT: Record<FurnitureType, number> = {
-  sofa: 0.8,
-  bed: 0.7,
-  table: 0.75,
-  chair: 0.9,
-  desk: 0.75,
-  cabinet: 1.2,
-  toilet: 0.6,
-  sink: 0.85,
-  stove: 0.9,
-  fridge: 1.8,
+/** 默认设备尺寸 */
+export const DEFAULT_DEVICE_SIZE: Record<DeviceType, { width: number; depth: number; height: number }> = {
+  light: { width: 0.4, depth: 0.4, height: 0.1 },
+  ac: { width: 1.0, depth: 0.3, height: 0.3 },
+  fan: { width: 0.4, depth: 0.4, height: 1.2 },
+  curtain: { width: 0.1, depth: 2.0, height: 2.5 },
+  tv: { width: 1.2, depth: 0.1, height: 0.7 },
+  speaker: { width: 0.15, depth: 0.15, height: 0.25 },
+  humidifier: { width: 0.25, depth: 0.25, height: 0.35 },
+  purifier: { width: 0.3, depth: 0.3, height: 0.6 },
+  heater: { width: 0.5, depth: 0.15, height: 0.6 },
+};
+
+/** 设备颜色 */
+export const DEVICE_COLORS: Record<DeviceType, { on: string; off: string }> = {
+  light: { on: '#FFD700', off: '#808080' },
+  ac: { on: '#00BFFF', off: '#A0A0A0' },
+  fan: { on: '#87CEEB', off: '#B0B0B0' },
+  curtain: { on: '#DEB887', off: '#8B7355' },
+  tv: { on: '#1E90FF', off: '#2F2F2F' },
+  speaker: { on: '#FF6347', off: '#4A4A4A' },
+  humidifier: { on: '#00CED1', off: '#696969' },
+  purifier: { on: '#98FB98', off: '#708090' },
+  heater: { on: '#FF4500', off: '#5A5A5A' },
 };
