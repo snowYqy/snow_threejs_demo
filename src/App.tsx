@@ -1,43 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Scene3D from './components/Scene3D';
 import UI from './components/UI';
-import { getRoomNames } from './data/floorPlanData';
+import { loadHomeData, getRoomNames } from './data/homeDataLoader';
+import type { HomeData } from './types/homeData';
 import './App.css';
 
 /**
- * App组件 - 3D智能家居控制系统主应用
- * 
- * 功能:
- * - 集成Scene3D和UI组件
- * - 使用useState管理selectedRoom和hoveredRoom状态
- * - 提供房间选择和悬停的状态管理
+ * App组件 - 数据驱动的3D智能家居控制系统
  */
 function App() {
-  // 当前选中的房间ID
+  const [homeData, setHomeData] = useState<HomeData | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
-  // 当前悬停的房间ID
   const [hoveredRoom, setHoveredRoom] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 获取房间名称映射
-  const roomNames = getRoomNames();
+  // 加载户型数据
+  useEffect(() => {
+    loadHomeData('/homeData.json')
+      .then(data => {
+        setHomeData(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#fff', fontSize: '1.5rem' }}>加载中...</p>
+      </div>
+    );
+  }
+
+  if (error || !homeData) {
+    return (
+      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#ff6b6b', fontSize: '1.5rem' }}>加载失败: {error}</p>
+      </div>
+    );
+  }
+
+  const roomNames = getRoomNames(homeData.rooms);
 
   return (
     <div className="app-container">
-      {/* 3D场景容器 */}
       <div className="canvas-container">
         <Scene3D
-          onRoomSelect={setSelectedRoom}
-          onRoomHover={setHoveredRoom}
+          homeData={homeData}
           selectedRoom={selectedRoom}
           hoveredRoom={hoveredRoom}
+          onRoomSelect={setSelectedRoom}
+          onRoomHover={setHoveredRoom}
         />
       </div>
-      
-      {/* UI覆盖层 */}
-      <UI
-        selectedRoom={selectedRoom}
-        roomNames={roomNames}
-      />
+      <UI selectedRoom={selectedRoom} roomNames={roomNames} />
     </div>
   );
 }

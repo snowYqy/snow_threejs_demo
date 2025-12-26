@@ -2,46 +2,42 @@ import { useRef, useMemo } from 'react';
 import { Mesh, Color } from 'three';
 import { Edges } from '@react-three/drei';
 import { Furniture } from './Furniture';
-import { getFurnitureByRoom } from '../data/floorPlanData';
-import type { RoomProps } from '../types';
+import type { RoomData } from '../types/homeData';
+import { getRoomPosition, getRoomSize } from '../data/homeDataLoader';
+
+interface RoomProps {
+  data: RoomData;
+  wallHeight: number;
+  isSelected: boolean;
+  isHovered: boolean;
+  onClick: () => void;
+  onHover: (hovered: boolean) => void;
+}
 
 /**
- * Room组件 - 单个房间的3D渲染
- * 渲染地板和房间内的家具
+ * Room组件 - 根据数据渲染房间
  */
 export const Room: React.FC<RoomProps> = ({
-  id,
-  name,
-  position,
-  size,
-  color,
+  data,
+  wallHeight,
   isSelected,
   isHovered,
   onClick,
   onHover,
 }) => {
   const floorRef = useRef<Mesh>(null);
-  const [width, height, depth] = size;
+  const position = getRoomPosition(data, wallHeight);
+  const [width, height, depth] = getRoomSize(data, wallHeight);
 
-  // 获取房间内的家具
-  const furniture = useMemo(() => getFurnitureByRoom(id), [id]);
-
-  // 计算颜色变化
   const floorColor = useMemo(() => {
-    const baseColor = new Color(color);
-    if (isSelected) {
-      return baseColor.clone().multiplyScalar(1.3);
-    }
-    if (isHovered) {
-      return baseColor.clone().multiplyScalar(1.15);
-    }
+    const baseColor = new Color(data.color);
+    if (isSelected) return baseColor.clone().multiplyScalar(1.3);
+    if (isHovered) return baseColor.clone().multiplyScalar(1.15);
     return baseColor;
-  }, [color, isSelected, isHovered]);
+  }, [data.color, isSelected, isHovered]);
 
-  // 选中状态边框颜色
   const edgeColor = isSelected ? '#FFD700' : isHovered ? '#87CEEB' : undefined;
 
-  // 处理指针事件
   const handlePointerOver = (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
     onHover(true);
@@ -56,8 +52,6 @@ export const Room: React.FC<RoomProps> = ({
     e.stopPropagation();
     onClick();
   };
-
-  void name;
 
   return (
     <group position={position}>
@@ -74,9 +68,9 @@ export const Room: React.FC<RoomProps> = ({
         {edgeColor && <Edges color={edgeColor} linewidth={2} threshold={15} />}
       </mesh>
 
-      {/* 渲染家具 - 家具位置是相对于房间中心的偏移 */}
-      {furniture.map((f) => (
-        <Furniture key={f.id} furniture={f} />
+      {/* 渲染家具 */}
+      {data.furniture.map((f, index) => (
+        <Furniture key={`${data.id}-furniture-${index}`} data={f} wallHeight={wallHeight} />
       ))}
     </group>
   );

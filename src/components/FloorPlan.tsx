@@ -1,73 +1,58 @@
 import { useCallback, useMemo } from 'react';
 import { Room } from './Room';
-import { floorPlanData, innerWalls } from '../data/floorPlanData';
-import type { FloorPlanProps } from '../types';
+import type { HomeData } from '../types/homeData';
+import { calculateOuterWalls, getWallGeometry } from '../data/homeDataLoader';
+
+interface FloorPlanProps {
+  homeData: HomeData;
+  selectedRoom: string | null;
+  hoveredRoom: string | null;
+  onRoomClick: (roomId: string) => void;
+  onRoomHover: (roomId: string | null) => void;
+}
 
 /**
- * FloorPlan组件 - 户型布局渲染
- * 渲染所有房间、内墙和外墙
+ * FloorPlan组件 - 根据数据渲染整个户型
  */
 export const FloorPlan: React.FC<FloorPlanProps> = ({
-  onRoomClick,
-  onRoomHover,
+  homeData,
   selectedRoom,
   hoveredRoom,
+  onRoomClick,
+  onRoomHover,
 }) => {
-  const handleRoomClick = useCallback(
-    (roomId: string) => {
-      onRoomClick(roomId);
-    },
-    [onRoomClick]
-  );
+  const { meta, rooms, walls } = homeData;
+  const { wallHeight, wallThickness } = meta;
 
-  const handleRoomHover = useCallback(
-    (roomId: string | null) => {
-      onRoomHover(roomId);
-    },
-    [onRoomHover]
-  );
+  const handleRoomClick = useCallback((roomId: string) => {
+    onRoomClick(roomId);
+  }, [onRoomClick]);
+
+  const handleRoomHover = useCallback((roomId: string | null) => {
+    onRoomHover(roomId);
+  }, [onRoomHover]);
 
   // 计算外墙边界
-  const wallBounds = useMemo(() => {
-    let minX = Infinity, maxX = -Infinity;
-    let minZ = Infinity, maxZ = -Infinity;
-    
-    floorPlanData.rooms.forEach(room => {
-      const [x, , z] = room.position;
-      const [w, , d] = room.size;
-      minX = Math.min(minX, x - w / 2);
-      maxX = Math.max(maxX, x + w / 2);
-      minZ = Math.min(minZ, z - d / 2);
-      maxZ = Math.max(maxZ, z + d / 2);
-    });
-
-    return { minX, maxX, minZ, maxZ };
-  }, []);
-
-  const wallHeight = 3;
-  const wallThickness = 0.1;
-  const wallColor = '#D0D0D0';
-  const wallOpacity = 0.4;
-  const innerWallColor = '#C0C0C0';
-  const innerWallOpacity = 0.5;
-
-  const { minX, maxX, minZ, maxZ } = wallBounds;
+  const outerBounds = useMemo(() => calculateOuterWalls(rooms), [rooms]);
+  const { minX, maxX, minZ, maxZ } = outerBounds;
   const totalWidth = maxX - minX;
   const totalDepth = maxZ - minZ;
   const centerX = (minX + maxX) / 2;
   const centerZ = (minZ + maxZ) / 2;
 
+  const wallColor = '#D0D0D0';
+  const wallOpacity = 0.4;
+  const innerWallColor = '#C0C0C0';
+  const innerWallOpacity = 0.5;
+
   return (
     <group>
       {/* 渲染所有房间 */}
-      {floorPlanData.rooms.map((room) => (
+      {rooms.map((room) => (
         <Room
           key={room.id}
-          id={room.id}
-          name={room.name}
-          position={room.position}
-          size={room.size}
-          color={room.color}
+          data={room}
+          wallHeight={wallHeight}
           isSelected={selectedRoom === room.id}
           isHovered={hoveredRoom === room.id}
           onClick={() => handleRoomClick(room.id)}
@@ -76,36 +61,35 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
       ))}
 
       {/* 渲染内墙 */}
-      {innerWalls.map((wall) => (
-        <mesh key={wall.id} position={wall.position}>
-          <boxGeometry args={wall.size} />
-          <meshStandardMaterial 
-            color={innerWallColor} 
-            transparent 
-            opacity={innerWallOpacity} 
-          />
-        </mesh>
-      ))}
+      {walls.map((wall) => {
+        const { position, size } = getWallGeometry(wall, wallHeight, wallThickness);
+        return (
+          <mesh key={wall.id} position={position}>
+            <boxGeometry args={size} />
+            <meshStandardMaterial color={innerWallColor} transparent opacity={innerWallOpacity} />
+          </mesh>
+        );
+      })}
 
-      {/* 外墙 - 北墙 */}
+      {/* 外墙 - 北 */}
       <mesh position={[centerX, wallHeight / 2, minZ - wallThickness / 2]}>
         <boxGeometry args={[totalWidth + wallThickness * 2, wallHeight, wallThickness]} />
         <meshStandardMaterial color={wallColor} transparent opacity={wallOpacity} />
       </mesh>
 
-      {/* 外墙 - 南墙 */}
+      {/* 外墙 - 南 */}
       <mesh position={[centerX, wallHeight / 2, maxZ + wallThickness / 2]}>
         <boxGeometry args={[totalWidth + wallThickness * 2, wallHeight, wallThickness]} />
         <meshStandardMaterial color={wallColor} transparent opacity={wallOpacity} />
       </mesh>
 
-      {/* 外墙 - 西墙 */}
+      {/* 外墙 - 西 */}
       <mesh position={[minX - wallThickness / 2, wallHeight / 2, centerZ]}>
         <boxGeometry args={[wallThickness, wallHeight, totalDepth]} />
         <meshStandardMaterial color={wallColor} transparent opacity={wallOpacity} />
       </mesh>
 
-      {/* 外墙 - 东墙 */}
+      {/* 外墙 - 东 */}
       <mesh position={[maxX + wallThickness / 2, wallHeight / 2, centerZ]}>
         <boxGeometry args={[wallThickness, wallHeight, totalDepth]} />
         <meshStandardMaterial color={wallColor} transparent opacity={wallOpacity} />
