@@ -7,7 +7,7 @@ import type { RoomProps } from '../types';
 
 /**
  * Room组件 - 单个房间的3D渲染
- * 只渲染地板，墙壁由外墙统一渲染
+ * 渲染地板和房间内的家具
  */
 export const Room: React.FC<RoomProps> = ({
   id,
@@ -57,7 +57,6 @@ export const Room: React.FC<RoomProps> = ({
     onClick();
   };
 
-  // Suppress unused variable warnings
   void name;
 
   return (
@@ -75,9 +74,9 @@ export const Room: React.FC<RoomProps> = ({
         {edgeColor && <Edges color={edgeColor} linewidth={2} threshold={15} />}
       </mesh>
 
-      {/* 渲染家具 */}
+      {/* 渲染家具 - 家具位置是相对于房间中心的偏移 */}
       {furniture.map((f) => (
-        <Furniture key={f.id} furniture={f} roomPosition={position} />
+        <Furniture key={f.id} furniture={f} />
       ))}
     </group>
   );

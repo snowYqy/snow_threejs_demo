@@ -1,11 +1,11 @@
 import { useCallback, useMemo } from 'react';
 import { Room } from './Room';
-import { floorPlanData } from '../data/floorPlanData';
+import { floorPlanData, innerWalls } from '../data/floorPlanData';
 import type { FloorPlanProps } from '../types';
 
 /**
  * FloorPlan组件 - 户型布局渲染
- * 渲染所有房间和外墙
+ * 渲染所有房间、内墙和外墙
  */
 export const FloorPlan: React.FC<FloorPlanProps> = ({
   onRoomClick,
@@ -13,7 +13,6 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   selectedRoom,
   hoveredRoom,
 }) => {
-  // 处理房间点击
   const handleRoomClick = useCallback(
     (roomId: string) => {
       onRoomClick(roomId);
@@ -21,7 +20,6 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
     [onRoomClick]
   );
 
-  // 处理房间悬停
   const handleRoomHover = useCallback(
     (roomId: string | null) => {
       onRoomHover(roomId);
@@ -47,9 +45,11 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   }, []);
 
   const wallHeight = 3;
-  const wallThickness = 0.15;
-  const wallColor = '#E0E0E0';
-  const wallOpacity = 0.3;
+  const wallThickness = 0.1;
+  const wallColor = '#D0D0D0';
+  const wallOpacity = 0.4;
+  const innerWallColor = '#C0C0C0';
+  const innerWallOpacity = 0.5;
 
   const { minX, maxX, minZ, maxZ } = wallBounds;
   const totalWidth = maxX - minX;
@@ -73,6 +73,18 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
           onClick={() => handleRoomClick(room.id)}
           onHover={(hovered) => handleRoomHover(hovered ? room.id : null)}
         />
+      ))}
+
+      {/* 渲染内墙 */}
+      {innerWalls.map((wall) => (
+        <mesh key={wall.id} position={wall.position}>
+          <boxGeometry args={wall.size} />
+          <meshStandardMaterial 
+            color={innerWallColor} 
+            transparent 
+            opacity={innerWallOpacity} 
+          />
+        </mesh>
       ))}
 
       {/* 外墙 - 北墙 */}
