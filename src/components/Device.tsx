@@ -165,20 +165,81 @@ export const Device: React.FC<DeviceProps> = ({ data, wallHeight, roomId }) => {
       case 'light':
         return (
           <group>
+            {/* 灯座 */}
             <mesh>
               <cylinderGeometry args={[0.15, 0.2, 0.08, 16]} />
               <meshStandardMaterial color="#FFFFFF" />
             </mesh>
+            {/* 灯泡 */}
             <mesh position={[0, -0.1, 0]}>
               <sphereGeometry args={[0.12, 16, 16]} />
               <meshStandardMaterial 
-                color={deviceColor} 
-                emissive={isOn ? deviceColor : undefined}
-                emissiveIntensity={isOn ? 0.5 : 0}
+                color={isOn ? '#FFFACD' : '#808080'} 
+                emissive={isOn ? '#FFD700' : undefined}
+                emissiveIntensity={isOn ? 1 : 0}
+                transparent
+                opacity={isOn ? 0.9 : 1}
               />
             </mesh>
+            {/* 光晕效果 - 多层散射 */}
             {isOn && (
-              <pointLight position={[0, -0.2, 0]} intensity={1} distance={5} color={colors.on} />
+              <>
+                {/* 内层光晕 */}
+                <mesh position={[0, -0.1, 0]}>
+                  <sphereGeometry args={[0.2, 16, 16]} />
+                  <meshBasicMaterial 
+                    color="#FFD700" 
+                    transparent 
+                    opacity={0.3}
+                  />
+                </mesh>
+                {/* 中层光晕 */}
+                <mesh position={[0, -0.1, 0]}>
+                  <sphereGeometry args={[0.35, 16, 16]} />
+                  <meshBasicMaterial 
+                    color="#FFA500" 
+                    transparent 
+                    opacity={0.15}
+                  />
+                </mesh>
+                {/* 外层光晕 */}
+                <mesh position={[0, -0.1, 0]}>
+                  <sphereGeometry args={[0.5, 16, 16]} />
+                  <meshBasicMaterial 
+                    color="#FFE4B5" 
+                    transparent 
+                    opacity={0.08}
+                  />
+                </mesh>
+                {/* 向下的锥形光束 */}
+                <mesh position={[0, -0.8, 0]}>
+                  <coneGeometry args={[0.8, 1.2, 32, 1, true]} />
+                  <meshBasicMaterial 
+                    color="#FFD700" 
+                    transparent 
+                    opacity={0.06}
+                    side={2}
+                  />
+                </mesh>
+                {/* 点光源 - 主光源 */}
+                <pointLight 
+                  position={[0, -0.15, 0]} 
+                  intensity={2} 
+                  distance={8} 
+                  color="#FFD700"
+                  decay={2}
+                />
+                {/* 聚光灯 - 向下照射 */}
+                <spotLight
+                  position={[0, -0.15, 0]}
+                  angle={Math.PI / 3}
+                  penumbra={0.5}
+                  intensity={1.5}
+                  distance={6}
+                  color="#FFF8DC"
+                  target-position={[0, -3, 0]}
+                />
+              </>
             )}
           </group>
         );
