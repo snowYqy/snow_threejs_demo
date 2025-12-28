@@ -31,13 +31,13 @@ export const Scene3D: React.FC = () => {
         gl.outputColorSpace = THREE.SRGBColorSpace;
       }}
     >
-      {/* 环境光 - 整体亮度，柔和 */}
-      <ambientLight intensity={0.35} color="#ffffff" />
+      {/* 环境光 - 降低整体亮度，让灯光效果更明显 */}
+      <ambientLight intensity={0.15} color="#e8e8f0" />
       
-      {/* 主光 - 模拟窗户/天光，暖色调 */}
+      {/* 主光 - 模拟窗户/天光，降低强度 */}
       <directionalLight 
         position={[10, 15, 10]} 
-        intensity={2.2} 
+        intensity={1.2} 
         color="#fff1d0"
         castShadow
         shadow-mapSize-width={1024}
@@ -46,18 +46,11 @@ export const Scene3D: React.FC = () => {
         shadow-bias={-0.0001}
       />
       
-      {/* 补光 - 消除死黑区域 */}
+      {/* 补光 - 消除死黑区域，降低强度 */}
       <directionalLight 
         position={[-8, 6, -8]} 
-        intensity={1.1} 
-        color="#ffffff"
-      />
-      
-      {/* 底部微弱补光 - 模拟地面反射 */}
-      <directionalLight 
-        position={[0, -5, 0]} 
-        intensity={0.3} 
-        color="#f5f5f5"
+        intensity={0.5} 
+        color="#f0f0ff"
       />
       
       <OrbitControls

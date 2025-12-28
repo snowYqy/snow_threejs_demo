@@ -178,31 +178,31 @@ export const Device: React.FC<DeviceProps> = ({ data, wallHeight, roomId }) => {
             <mesh position={[0, -0.1, 0]}>
               <sphereGeometry args={[0.12, 32, 32]} />
               <meshStandardMaterial 
-                color={isOn ? '#FFFEF5' : '#E0E0E0'} 
+                color={isOn ? '#FFFEF5' : '#B0B0B0'} 
                 emissive={isOn ? new Color('#FFF4CC') : undefined}
-                emissiveIntensity={isOn ? 1.2 : 0}
+                emissiveIntensity={isOn ? 1.8 : 0}
                 roughness={0.2}
                 metalness={0}
               />
             </mesh>
-            {/* 米家风格：简洁的柔和光晕 - 只需2-3层 */}
+            {/* 米家风格：简洁的柔和光晕 */}
             {isOn && (
               <>
                 {/* 内层柔光 */}
                 <mesh position={[0, -0.1, 0]}>
                   <sphereGeometry args={[0.18, 24, 24]} />
-                  <meshBasicMaterial color="#FFF8E7" transparent opacity={0.25} />
+                  <meshBasicMaterial color="#FFF8E7" transparent opacity={0.35} />
                 </mesh>
                 {/* 外层柔光 */}
                 <mesh position={[0, -0.1, 0]}>
-                  <sphereGeometry args={[0.3, 24, 24]} />
-                  <meshBasicMaterial color="#FFEFD5" transparent opacity={0.1} />
+                  <sphereGeometry args={[0.35, 24, 24]} />
+                  <meshBasicMaterial color="#FFEFD5" transparent opacity={0.15} />
                 </mesh>
-                {/* 点光源 - 柔和暖色，适度强度 */}
+                {/* 点光源 - 增强强度，让房间更亮 */}
                 <pointLight 
                   position={[0, -0.15, 0]} 
-                  intensity={0.8} 
-                  distance={4} 
+                  intensity={2.5} 
+                  distance={6} 
                   color="#FFF5E6"
                   decay={2}
                 />
