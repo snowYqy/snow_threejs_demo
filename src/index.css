@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
-/* 全屏布局 */
+/* 全屏布局 - 米家风格背景 */
 html, body {
   @apply m-0 p-0 w-full h-full overflow-hidden;
+  background-color: #F5F7FA;
 }
 
 #root {
   @apply w-full h-full m-0 p-0;
+  background-color: #F5F7FA;
 }

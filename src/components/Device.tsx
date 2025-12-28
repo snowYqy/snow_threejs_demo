@@ -165,91 +165,46 @@ export const Device: React.FC<DeviceProps> = ({ data, wallHeight, roomId }) => {
       case 'light':
         return (
           <group>
-            {/* 灯座 */}
-            <mesh>
+            {/* 灯座 - PBR材质 */}
+            <mesh castShadow>
               <cylinderGeometry args={[0.15, 0.2, 0.08, 32]} />
-              <meshStandardMaterial color="#F5F5F5" metalness={0.3} roughness={0.4} />
+              <meshStandardMaterial 
+                color="#FAFAFA" 
+                metalness={0.1} 
+                roughness={0.6} 
+              />
             </mesh>
-            {/* 灯泡 */}
+            {/* 灯泡/灯罩 - 核心发光体 */}
             <mesh position={[0, -0.1, 0]}>
               <sphereGeometry args={[0.12, 32, 32]} />
               <meshStandardMaterial 
-                color={isOn ? '#FFFEF0' : '#A0A0A0'} 
-                emissive={isOn ? '#FFF5E0' : undefined}
-                emissiveIntensity={isOn ? 2 : 0}
-                transparent
-                opacity={isOn ? 0.95 : 1}
-                roughness={0.1}
+                color={isOn ? '#FFFEF5' : '#E0E0E0'} 
+                emissive={isOn ? new Color('#FFF4CC') : undefined}
+                emissiveIntensity={isOn ? 1.2 : 0}
+                roughness={0.2}
+                metalness={0}
               />
             </mesh>
-            {/* 细腻光晕效果 - 8层渐变 */}
+            {/* 米家风格：简洁的柔和光晕 - 只需2-3层 */}
             {isOn && (
               <>
-                {/* 核心光晕 - 最亮 */}
+                {/* 内层柔光 */}
                 <mesh position={[0, -0.1, 0]}>
-                  <sphereGeometry args={[0.15, 32, 32]} />
-                  <meshBasicMaterial color="#FFFAF0" transparent opacity={0.5} />
+                  <sphereGeometry args={[0.18, 24, 24]} />
+                  <meshBasicMaterial color="#FFF8E7" transparent opacity={0.25} />
                 </mesh>
-                {/* 第2层 */}
+                {/* 外层柔光 */}
                 <mesh position={[0, -0.1, 0]}>
-                  <sphereGeometry args={[0.2, 32, 32]} />
-                  <meshBasicMaterial color="#FFF8DC" transparent opacity={0.35} />
+                  <sphereGeometry args={[0.3, 24, 24]} />
+                  <meshBasicMaterial color="#FFEFD5" transparent opacity={0.1} />
                 </mesh>
-                {/* 第3层 */}
-                <mesh position={[0, -0.1, 0]}>
-                  <sphereGeometry args={[0.28, 32, 32]} />
-                  <meshBasicMaterial color="#FFE4B5" transparent opacity={0.22} />
-                </mesh>
-                {/* 第4层 */}
-                <mesh position={[0, -0.1, 0]}>
-                  <sphereGeometry args={[0.38, 32, 32]} />
-                  <meshBasicMaterial color="#FFDAB9" transparent opacity={0.14} />
-                </mesh>
-                {/* 第5层 */}
-                <mesh position={[0, -0.1, 0]}>
-                  <sphereGeometry args={[0.5, 32, 32]} />
-                  <meshBasicMaterial color="#FFD39B" transparent opacity={0.08} />
-                </mesh>
-                {/* 第6层 */}
-                <mesh position={[0, -0.1, 0]}>
-                  <sphereGeometry args={[0.65, 32, 32]} />
-                  <meshBasicMaterial color="#FFC87C" transparent opacity={0.04} />
-                </mesh>
-                {/* 第7层 - 最外层柔和光晕 */}
-                <mesh position={[0, -0.1, 0]}>
-                  <sphereGeometry args={[0.85, 32, 32]} />
-                  <meshBasicMaterial color="#FFB347" transparent opacity={0.02} />
-                </mesh>
-                {/* 向下的柔和锥形光束 - 多层 */}
-                <mesh position={[0, -0.6, 0]}>
-                  <coneGeometry args={[0.5, 0.8, 48, 1, true]} />
-                  <meshBasicMaterial color="#FFF8DC" transparent opacity={0.08} side={2} />
-                </mesh>
-                <mesh position={[0, -0.8, 0]}>
-                  <coneGeometry args={[0.7, 1.0, 48, 1, true]} />
-                  <meshBasicMaterial color="#FFE4B5" transparent opacity={0.05} side={2} />
-                </mesh>
-                <mesh position={[0, -1.0, 0]}>
-                  <coneGeometry args={[0.9, 1.2, 48, 1, true]} />
-                  <meshBasicMaterial color="#FFDAB9" transparent opacity={0.03} side={2} />
-                </mesh>
-                {/* 点光源 - 主光源，柔和暖色 */}
+                {/* 点光源 - 柔和暖色，适度强度 */}
                 <pointLight 
                   position={[0, -0.15, 0]} 
-                  intensity={1.5} 
-                  distance={6} 
+                  intensity={0.8} 
+                  distance={4} 
                   color="#FFF5E6"
                   decay={2}
-                />
-                {/* 聚光灯 - 向下照射，柔和边缘 */}
-                <spotLight
-                  position={[0, -0.15, 0]}
-                  angle={Math.PI / 2.5}
-                  penumbra={1}
-                  intensity={1}
-                  distance={5}
-                  color="#FFF8F0"
-                  castShadow={false}
                 />
               </>
             )}
@@ -259,20 +214,20 @@ export const Device: React.FC<DeviceProps> = ({ data, wallHeight, roomId }) => {
       case 'ac':
         return (
           <group>
-            <mesh>
+            <mesh castShadow>
               <boxGeometry args={[width, height, depth]} />
-              <meshStandardMaterial color="#FFFFFF" />
+              <meshStandardMaterial color="#FAFAFA" roughness={0.6} metalness={0} />
             </mesh>
             <mesh position={[0, -height / 2 + 0.02, depth / 2 - 0.02]}>
               <boxGeometry args={[width * 0.8, 0.04, 0.02]} />
-              <meshStandardMaterial color={deviceColor} />
+              <meshStandardMaterial color={deviceColor} roughness={0.5} />
             </mesh>
             <mesh position={[width / 2 - 0.1, 0, depth / 2 + 0.01]}>
-              <sphereGeometry args={[0.02, 8, 8]} />
+              <sphereGeometry args={[0.02, 16, 16]} />
               <meshStandardMaterial 
-                color={isOn ? '#00FF00' : '#333333'} 
-                emissive={isOn ? '#00FF00' : undefined}
-                emissiveIntensity={isOn ? 1 : 0}
+                color={isOn ? '#4ADE80' : '#666666'} 
+                emissive={isOn ? new Color('#4ADE80') : undefined}
+                emissiveIntensity={isOn ? 0.8 : 0}
               />
             </mesh>
           </group>
@@ -287,17 +242,18 @@ export const Device: React.FC<DeviceProps> = ({ data, wallHeight, roomId }) => {
       case 'tv':
         return (
           <group>
-            <mesh>
+            <mesh castShadow>
               <boxGeometry args={[width, height, depth]} />
-              <meshStandardMaterial color={isOn ? '#1a1a2e' : '#0a0a0a'} />
+              <meshStandardMaterial color="#1a1a1a" roughness={0.3} metalness={0.1} />
             </mesh>
             {isOn && (
               <mesh position={[0, 0, depth / 2 + 0.001]}>
                 <planeGeometry args={[width * 0.95, height * 0.9]} />
                 <meshStandardMaterial 
-                  color={deviceColor}
-                  emissive={deviceColor}
-                  emissiveIntensity={0.3}
+                  color="#E8F0FF"
+                  emissive={new Color('#B8D4FF')}
+                  emissiveIntensity={0.4}
+                  roughness={0.1}
                 />
               </mesh>
             )}
@@ -307,16 +263,16 @@ export const Device: React.FC<DeviceProps> = ({ data, wallHeight, roomId }) => {
       case 'speaker':
         return (
           <group>
-            <mesh>
-              <cylinderGeometry args={[width / 2, width / 2 * 0.8, height, 16]} />
-              <meshStandardMaterial color="#2F2F2F" />
+            <mesh castShadow>
+              <cylinderGeometry args={[width / 2, width / 2 * 0.8, height, 24]} />
+              <meshStandardMaterial color="#3A3A3A" roughness={0.7} metalness={0.1} />
             </mesh>
             <mesh position={[0, height / 2 - 0.02, 0]}>
               <torusGeometry args={[width / 2 - 0.02, 0.01, 8, 32]} />
               <meshStandardMaterial 
-                color={deviceColor}
-                emissive={isOn ? deviceColor : undefined}
-                emissiveIntensity={isOn ? 1 : 0}
+                color={isOn ? '#60A5FA' : '#666666'}
+                emissive={isOn ? new Color('#60A5FA') : undefined}
+                emissiveIntensity={isOn ? 0.6 : 0}
               />
             </mesh>
           </group>
@@ -325,18 +281,18 @@ export const Device: React.FC<DeviceProps> = ({ data, wallHeight, roomId }) => {
       case 'humidifier':
         return (
           <group>
-            <mesh>
-              <cylinderGeometry args={[width / 2, width / 2, height * 0.7, 16]} />
-              <meshStandardMaterial color="#FFFFFF" />
+            <mesh castShadow>
+              <cylinderGeometry args={[width / 2, width / 2, height * 0.7, 24]} />
+              <meshStandardMaterial color="#FAFAFA" roughness={0.6} metalness={0} />
             </mesh>
             <mesh position={[0, height / 2 - 0.1, 0]}>
               <cylinderGeometry args={[0.05, 0.08, 0.1, 16]} />
-              <meshStandardMaterial color={deviceColor} />
+              <meshStandardMaterial color={deviceColor} roughness={0.5} />
             </mesh>
             {isOn && (
               <mesh position={[0, height / 2 + 0.1, 0]}>
-                <sphereGeometry args={[0.1, 8, 8]} />
-                <meshStandardMaterial color="#ADD8E6" transparent opacity={0.4} />
+                <sphereGeometry args={[0.1, 16, 16]} />
+                <meshStandardMaterial color="#B8E0FF" transparent opacity={0.35} roughness={0.1} />
               </mesh>
             )}
           </group>
@@ -345,20 +301,20 @@ export const Device: React.FC<DeviceProps> = ({ data, wallHeight, roomId }) => {
       case 'purifier':
         return (
           <group>
-            <mesh>
+            <mesh castShadow>
               <boxGeometry args={[width, height, depth]} />
-              <meshStandardMaterial color="#FFFFFF" />
+              <meshStandardMaterial color="#FAFAFA" roughness={0.6} metalness={0} />
             </mesh>
             <mesh position={[0, height / 2 - 0.1, depth / 2 + 0.01]}>
               <boxGeometry args={[width * 0.6, 0.15, 0.02]} />
-              <meshStandardMaterial color={deviceColor} />
+              <meshStandardMaterial color={deviceColor} roughness={0.5} />
             </mesh>
             <mesh position={[0, -height / 2 + 0.1, depth / 2 + 0.01]}>
-              <circleGeometry args={[0.03, 16]} />
+              <circleGeometry args={[0.03, 24]} />
               <meshStandardMaterial 
-                color={isOn ? '#00FF00' : '#333333'}
-                emissive={isOn ? '#00FF00' : undefined}
-                emissiveIntensity={isOn ? 1 : 0}
+                color={isOn ? '#4ADE80' : '#666666'}
+                emissive={isOn ? new Color('#4ADE80') : undefined}
+                emissiveIntensity={isOn ? 0.8 : 0}
               />
             </mesh>
           </group>
@@ -367,17 +323,17 @@ export const Device: React.FC<DeviceProps> = ({ data, wallHeight, roomId }) => {
       case 'heater':
         return (
           <group>
-            <mesh>
+            <mesh castShadow>
               <boxGeometry args={[width, height, depth]} />
-              <meshStandardMaterial color="#333333" />
+              <meshStandardMaterial color="#3A3A3A" roughness={0.7} metalness={0.1} />
             </mesh>
             {[...Array(5)].map((_, i) => (
               <mesh key={i} position={[(i - 2) * 0.08, 0, depth / 2 + 0.01]}>
                 <boxGeometry args={[0.02, height * 0.7, 0.01]} />
                 <meshStandardMaterial 
-                  color={isOn ? colors.on : '#555555'}
-                  emissive={isOn ? colors.on : undefined}
-                  emissiveIntensity={isOn ? 0.5 : 0}
+                  color={isOn ? '#FF6B4A' : '#555555'}
+                  emissive={isOn ? new Color('#FF4500') : undefined}
+                  emissiveIntensity={isOn ? 0.6 : 0}
                 />
               </mesh>
             ))}

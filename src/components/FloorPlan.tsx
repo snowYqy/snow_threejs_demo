@@ -3,12 +3,14 @@ import { Room } from './Room';
 import { useHomeStore } from '../store/useHomeStore';
 import type { RoomData } from '../types/homeData';
 
-// 墙壁样式
-const WALL_COLOR = '#B8D4E8';
-const WALL_OPACITY = 0.5;
+// 墙壁样式 - 米家风格
+const WALL_COLOR = '#F0F4F8';
+const WALL_OPACITY = 0.45;
 const WALL_THICKNESS = 0.1;
 const DOOR_WIDTH = 0.9;
 const DOOR_HEIGHT = 2.2;
+const WALL_ROUGHNESS = 0.7;
+const WALL_METALNESS = 0;
 
 interface WallSegment {
   id: string;
@@ -241,6 +243,17 @@ const Wall: React.FC<{ wall: WallSegment; wallHeight: number }> = ({ wall, wallH
 
   if (length < 0.1) return null;
 
+  // PBR墙体材质
+  const wallMaterial = (
+    <meshStandardMaterial 
+      color={WALL_COLOR} 
+      transparent 
+      opacity={WALL_OPACITY}
+      roughness={WALL_ROUGHNESS}
+      metalness={WALL_METALNESS}
+    />
+  );
+
   if (hasDoor && length > DOOR_WIDTH + 0.3) {
     const sideLen = (length - DOOR_WIDTH) / 2;
     const topH = wallHeight - DOOR_HEIGHT;
@@ -248,18 +261,18 @@ const Wall: React.FC<{ wall: WallSegment; wallHeight: number }> = ({ wall, wallH
     if (isVertical) {
       return (
         <group position={[centerX, wallHeight / 2, centerZ]}>
-          <mesh position={[0, 0, -(length/2 - sideLen/2)]}>
+          <mesh position={[0, 0, -(length/2 - sideLen/2)]} castShadow receiveShadow>
             <boxGeometry args={[WALL_THICKNESS, wallHeight, sideLen]} />
-            <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
+            {wallMaterial}
           </mesh>
-          <mesh position={[0, 0, (length/2 - sideLen/2)]}>
+          <mesh position={[0, 0, (length/2 - sideLen/2)]} castShadow receiveShadow>
             <boxGeometry args={[WALL_THICKNESS, wallHeight, sideLen]} />
-            <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
+            {wallMaterial}
           </mesh>
           {topH > 0.1 && (
-            <mesh position={[0, (wallHeight - topH) / 2, 0]}>
+            <mesh position={[0, (wallHeight - topH) / 2, 0]} castShadow receiveShadow>
               <boxGeometry args={[WALL_THICKNESS, topH, DOOR_WIDTH]} />
-              <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
+              {wallMaterial}
             </mesh>
           )}
         </group>
@@ -267,18 +280,18 @@ const Wall: React.FC<{ wall: WallSegment; wallHeight: number }> = ({ wall, wallH
     } else {
       return (
         <group position={[centerX, wallHeight / 2, centerZ]}>
-          <mesh position={[-(length/2 - sideLen/2), 0, 0]}>
+          <mesh position={[-(length/2 - sideLen/2), 0, 0]} castShadow receiveShadow>
             <boxGeometry args={[sideLen, wallHeight, WALL_THICKNESS]} />
-            <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
+            {wallMaterial}
           </mesh>
-          <mesh position={[(length/2 - sideLen/2), 0, 0]}>
+          <mesh position={[(length/2 - sideLen/2), 0, 0]} castShadow receiveShadow>
             <boxGeometry args={[sideLen, wallHeight, WALL_THICKNESS]} />
-            <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
+            {wallMaterial}
           </mesh>
           {topH > 0.1 && (
-            <mesh position={[0, (wallHeight - topH) / 2, 0]}>
+            <mesh position={[0, (wallHeight - topH) / 2, 0]} castShadow receiveShadow>
               <boxGeometry args={[DOOR_WIDTH, topH, WALL_THICKNESS]} />
-              <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
+              {wallMaterial}
             </mesh>
           )}
         </group>
@@ -287,9 +300,9 @@ const Wall: React.FC<{ wall: WallSegment; wallHeight: number }> = ({ wall, wallH
   }
 
   return (
-    <mesh position={[centerX, wallHeight / 2, centerZ]}>
+    <mesh position={[centerX, wallHeight / 2, centerZ]} castShadow receiveShadow>
       <boxGeometry args={isVertical ? [WALL_THICKNESS, wallHeight, length] : [length, wallHeight, WALL_THICKNESS]} />
-      <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
+      {wallMaterial}
     </mesh>
   );
 };
@@ -339,9 +352,10 @@ export const FloorPlan: React.FC = () => {
         <Wall key={wall.id} wall={wall} wallHeight={wallHeight} />
       ))}
 
+      {/* 地基 - PBR材质 */}
       <mesh position={[(minX + maxX) / 2, -0.1, (minZ + maxZ) / 2]} receiveShadow>
         <boxGeometry args={[maxX - minX + 0.5, 0.15, maxZ - minZ + 0.5]} />
-        <meshStandardMaterial color="#8B7355" />
+        <meshStandardMaterial color="#A89080" roughness={0.85} metalness={0} />
       </mesh>
     </group>
   );
