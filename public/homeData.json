@@ -12,20 +12,20 @@
       "name": "客厅",
       "type": "living",
       "position": [0, 0],
-      "size": [6, 4],
+      "size": [5, 4],
       "color": "#F5E6D3",
       "devices": [
         { "id": "living-light-1", "type": "light", "name": "主灯", "offset": [0, 0], "isOn": true },
         { "id": "living-ac", "type": "ac", "name": "空调", "offset": [0, -1.7], "isOn": false },
         { "id": "living-tv", "type": "tv", "name": "电视", "offset": [0, -1.5], "isOn": true },
-        { "id": "living-fan", "type": "fan", "name": "落地扇", "offset": [2.2, 1], "isOn": true }
+        { "id": "living-fan", "type": "fan", "name": "落地扇", "offset": [1.8, 1], "isOn": true }
       ]
     },
     {
       "id": "dining-room",
       "name": "餐厅",
       "type": "dining",
-      "position": [-4.5, 0],
+      "position": [-4, 0],
       "size": [3, 4],
       "color": "#E8D5B7",
       "devices": [
@@ -36,7 +36,7 @@
       "id": "kitchen",
       "name": "厨房",
       "type": "kitchen",
-      "position": [-4.5, -3.5],
+      "position": [-4, -3.5],
       "size": [3, 3],
       "color": "#FADBD8",
       "devices": [
@@ -48,7 +48,7 @@
       "id": "master-bedroom",
       "name": "主卧",
       "type": "bedroom",
-      "position": [4.5, 0],
+      "position": [4, 0],
       "size": [3, 4],
       "color": "#D4E6F1",
       "devices": [
@@ -61,7 +61,7 @@
       "id": "second-bedroom",
       "name": "次卧",
       "type": "bedroom",
-      "position": [4.5, -3.5],
+      "position": [4, -3.5],
       "size": [3, 3],
       "color": "#D5F5E3",
       "devices": [
@@ -74,7 +74,7 @@
       "name": "卫生间",
       "type": "bathroom",
       "position": [0, -3.5],
-      "size": [3, 3],
+      "size": [5, 3],
       "color": "#E8DAEF",
       "devices": [
         { "id": "bath-light", "type": "light", "name": "浴室灯", "offset": [0, 0], "isOn": true },
@@ -86,7 +86,7 @@
       "name": "阳台",
       "type": "balcony",
       "position": [0, 3],
-      "size": [6, 2],
+      "size": [5, 2],
       "color": "#ABEBC6",
       "devices": [
         { "id": "balcony-light", "type": "light", "name": "阳台灯", "offset": [0, 0], "isOn": false }

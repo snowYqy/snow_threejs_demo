@@ -10,180 +10,182 @@ const WALL_THICKNESS = 0.1;
 const DOOR_WIDTH = 0.9;
 const DOOR_HEIGHT = 2.2;
 
-interface WallDef {
+interface WallSegment {
   id: string;
   start: [number, number];
   end: [number, number];
-  hasDoor?: boolean;
+  hasDoor: boolean;
+  isOuter: boolean;
 }
 
-/**
- * 根据房间布局生成所有墙壁
- */
-function generateWalls(rooms: RoomData[]): WallDef[] {
-  const walls: WallDef[] = [];
+interface RoomBounds {
+  id: string;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+function getRoomBounds(room: RoomData): RoomBounds {
+  const [cx, cz] = room.position;
+  const [w, d] = room.size;
+  return {
+    id: room.id,
+    left: cx - w / 2,
+    right: cx + w / 2,
+    top: cz - d / 2,
+    bottom: cz + d / 2,
+  };
+}
+
+function isAdjacent(b1: RoomBounds, b2: RoomBounds, tolerance = 0.01): 'left' | 'right' | 'top' | 'bottom' | null {
+  // Check if b2 is to the right of b1
+  if (Math.abs(b1.right - b2.left) < tolerance) {
+    const overlapStart = Math.max(b1.top, b2.top);
+    const overlapEnd = Math.min(b1.bottom, b2.bottom);
+    if (overlapEnd > overlapStart + tolerance) return 'right';
+  }
+  // Check if b2 is to the left of b1
+  if (Math.abs(b1.left - b2.right) < tolerance) {
+    const overlapStart = Math.max(b1.top, b2.top);
+    const overlapEnd = Math.min(b1.bottom, b2.bottom);
+    if (overlapEnd > overlapStart + tolerance) return 'left';
+  }
+  // Check if b2 is below b1
+  if (Math.abs(b1.bottom - b2.top) < tolerance) {
+    const overlapStart = Math.max(b1.left, b2.left);
+    const overlapEnd = Math.min(b1.right, b2.right);
+    if (overlapEnd > overlapStart + tolerance) return 'bottom';
+  }
+  // Check if b2 is above b1
+  if (Math.abs(b1.top - b2.bottom) < tolerance) {
+    const overlapStart = Math.max(b1.left, b2.left);
+    const overlapEnd = Math.min(b1.right, b2.right);
+    if (overlapEnd > overlapStart + tolerance) return 'top';
+  }
+  return null;
+}
+
+function generateWalls(rooms: RoomData[]): WallSegment[] {
+  const walls: WallSegment[] = [];
+  const roomBounds = rooms.map(getRoomBounds);
   
-  // 计算整体边界
+  // Calculate overall bounds
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  rooms.forEach(room => {
-    const [x, z] = room.position;
-    const [w, d] = room.size;
-    minX = Math.min(minX, x - w/2);
-    maxX = Math.max(maxX, x + w/2);
-    minZ = Math.min(minZ, z - d/2);
-    maxZ = Math.max(maxZ, z + d/2);
+  roomBounds.forEach(b => {
+    minX = Math.min(minX, b.left);
+    maxX = Math.max(maxX, b.right);
+    minZ = Math.min(minZ, b.top);
+    maxZ = Math.max(maxZ, b.bottom);
   });
 
-  // 用网格标记哪些位置有房间
-  const gridSize = 0.5;
-  const grid: Map<string, string> = new Map();
-  
-  rooms.forEach(room => {
-    const [cx, cz] = room.position;
-    const [w, d] = room.size;
-    for (let x = cx - w/2 + gridSize/2; x < cx + w/2; x += gridSize) {
-      for (let z = cz - d/2 + gridSize/2; z < cz + d/2; z += gridSize) {
-        grid.set(`${Math.round(x*10)},${Math.round(z*10)}`, room.id);
-      }
-    }
+  // Find adjacencies for each room
+  const adjacencies = new Map<string, Map<string, 'left' | 'right' | 'top' | 'bottom'>>();
+  roomBounds.forEach(b1 => {
+    adjacencies.set(b1.id, new Map());
+    roomBounds.forEach(b2 => {
+      if (b1.id === b2.id) return;
+      const adj = isAdjacent(b1, b2);
+      if (adj) adjacencies.get(b1.id)!.set(b2.id, adj);
+    });
   });
 
-  // 为每个房间生成墙壁
-  rooms.forEach(room => {
-    const [cx, cz] = room.position;
-    const [w, d] = room.size;
-    const left = cx - w/2;
-    const right = cx + w/2;
-    const top = cz - d/2;
-    const bottom = cz + d/2;
+  // Generate walls for each room
+  roomBounds.forEach(bounds => {
+    const adj = adjacencies.get(bounds.id)!;
+    const { left, right, top, bottom, id } = bounds;
 
-    // 检查四边是否需要墙
-    // 北墙 (top)
-    let needNorthWall = true;
-    for (let x = left + gridSize/2; x < right; x += gridSize) {
-      const neighborId = grid.get(`${Math.round(x*10)},${Math.round((top - gridSize)*10)}`);
-      if (neighborId && neighborId !== room.id) {
-        needNorthWall = false;
-        break;
-      }
-    }
-    if (needNorthWall || Math.abs(top - minZ) < 0.1) {
-      walls.push({
-        id: `${room.id}-north`,
-        start: [left, top],
-        end: [right, top],
-        hasDoor: room.type === 'balcony'
+    // Get adjacent rooms for each side
+    const adjRight = Array.from(adj.entries()).filter(([, dir]) => dir === 'right').map(([rid]) => roomBounds.find(b => b.id === rid)!);
+    const adjLeft = Array.from(adj.entries()).filter(([, dir]) => dir === 'left').map(([rid]) => roomBounds.find(b => b.id === rid)!);
+    const adjBottom = Array.from(adj.entries()).filter(([, dir]) => dir === 'bottom').map(([rid]) => roomBounds.find(b => b.id === rid)!);
+    const adjTop = Array.from(adj.entries()).filter(([, dir]) => dir === 'top').map(([rid]) => roomBounds.find(b => b.id === rid)!);
+
+    // Right wall
+    if (adjRight.length === 0) {
+      walls.push({ id: `${id}-right`, start: [right, top], end: [right, bottom], hasDoor: false, isOuter: Math.abs(right - maxX) < 0.01 });
+    } else {
+      // Generate wall segments with gaps for adjacent rooms
+      const segments = generateWallSegments(top, bottom, adjRight.map(b => [b.top, b.bottom] as [number, number]));
+      segments.forEach((seg, i) => {
+        walls.push({ id: `${id}-right-${i}`, start: [right, seg[0]], end: [right, seg[1]], hasDoor: false, isOuter: false });
       });
     }
 
-    // 南墙 (bottom)
-    let needSouthWall = true;
-    for (let x = left + gridSize/2; x < right; x += gridSize) {
-      const neighborId = grid.get(`${Math.round(x*10)},${Math.round((bottom + gridSize)*10)}`);
-      if (neighborId && neighborId !== room.id) {
-        needSouthWall = false;
-        break;
-      }
-    }
-    if (needSouthWall || Math.abs(bottom - maxZ) < 0.1) {
-      walls.push({
-        id: `${room.id}-south`,
-        start: [left, bottom],
-        end: [right, bottom],
-        hasDoor: Math.abs(bottom - maxZ) < 0.1 && room.type === 'balcony'
+    // Left wall
+    if (adjLeft.length === 0) {
+      walls.push({ id: `${id}-left`, start: [left, top], end: [left, bottom], hasDoor: false, isOuter: Math.abs(left - minX) < 0.01 });
+    } else {
+      const segments = generateWallSegments(top, bottom, adjLeft.map(b => [b.top, b.bottom] as [number, number]));
+      segments.forEach((seg, i) => {
+        walls.push({ id: `${id}-left-${i}`, start: [left, seg[0]], end: [left, seg[1]], hasDoor: false, isOuter: false });
       });
     }
 
-    // 西墙 (left)
-    let needWestWall = true;
-    for (let z = top + gridSize/2; z < bottom; z += gridSize) {
-      const neighborId = grid.get(`${Math.round((left - gridSize)*10)},${Math.round(z*10)}`);
-      if (neighborId && neighborId !== room.id) {
-        needWestWall = false;
-        break;
-      }
-    }
-    if (needWestWall || Math.abs(left - minX) < 0.1) {
-      walls.push({
-        id: `${room.id}-west`,
-        start: [left, top],
-        end: [left, bottom],
-        hasDoor: false
+    // Bottom wall
+    if (adjBottom.length === 0) {
+      walls.push({ id: `${id}-bottom`, start: [left, bottom], end: [right, bottom], hasDoor: false, isOuter: Math.abs(bottom - maxZ) < 0.01 });
+    } else {
+      const segments = generateWallSegments(left, right, adjBottom.map(b => [b.left, b.right] as [number, number]));
+      segments.forEach((seg, i) => {
+        walls.push({ id: `${id}-bottom-${i}`, start: [seg[0], bottom], end: [seg[1], bottom], hasDoor: false, isOuter: false });
       });
     }
 
-    // 东墙 (right)
-    let needEastWall = true;
-    for (let z = top + gridSize/2; z < bottom; z += gridSize) {
-      const neighborId = grid.get(`${Math.round((right + gridSize)*10)},${Math.round(z*10)}`);
-      if (neighborId && neighborId !== room.id) {
-        needEastWall = false;
-        break;
-      }
-    }
-    if (needEastWall || Math.abs(right - maxX) < 0.1) {
-      walls.push({
-        id: `${room.id}-east`,
-        start: [right, top],
-        end: [right, bottom],
-        hasDoor: false
+    // Top wall
+    if (adjTop.length === 0) {
+      walls.push({ id: `${id}-top`, start: [left, top], end: [right, top], hasDoor: false, isOuter: Math.abs(top - minZ) < 0.01 });
+    } else {
+      const segments = generateWallSegments(left, right, adjTop.map(b => [b.left, b.right] as [number, number]));
+      segments.forEach((seg, i) => {
+        walls.push({ id: `${id}-top-${i}`, start: [seg[0], top], end: [seg[1], top], hasDoor: false, isOuter: false });
       });
     }
   });
 
-  // 添加房间之间的隔墙（带门）
+  // Add inner walls with doors between adjacent rooms
   const addedInnerWalls = new Set<string>();
-  rooms.forEach(room1 => {
-    rooms.forEach(room2 => {
-      if (room1.id >= room2.id) return;
+  roomBounds.forEach(b1 => {
+    const adj = adjacencies.get(b1.id)!;
+    adj.forEach((dir, b2Id) => {
+      const key = [b1.id, b2Id].sort().join('-');
+      if (addedInnerWalls.has(key)) return;
+      addedInnerWalls.add(key);
+
+      const b2 = roomBounds.find(b => b.id === b2Id)!;
       
-      const [x1, z1] = room1.position;
-      const [w1, d1] = room1.size;
-      const [x2, z2] = room2.position;
-      const [w2, d2] = room2.size;
-
-      // 检查水平相邻
-      if (Math.abs((x1 + w1/2) - (x2 - w2/2)) < 0.2) {
-        const wallX = x1 + w1/2;
-        const zStart = Math.max(z1 - d1/2, z2 - d2/2);
-        const zEnd = Math.min(z1 + d1/2, z2 + d2/2);
-        if (zEnd > zStart) {
-          const key = `v-${wallX.toFixed(1)}-${zStart.toFixed(1)}-${zEnd.toFixed(1)}`;
-          if (!addedInnerWalls.has(key)) {
-            addedInnerWalls.add(key);
-            walls.push({
-              id: `inner-${room1.id}-${room2.id}`,
-              start: [wallX, zStart],
-              end: [wallX, zEnd],
-              hasDoor: true
-            });
-          }
+      if (dir === 'right' || dir === 'left') {
+        const wallX = dir === 'right' ? b1.right : b1.left;
+        const overlapStart = Math.max(b1.top, b2.top);
+        const overlapEnd = Math.min(b1.bottom, b2.bottom);
+        if (overlapEnd > overlapStart + 0.5) {
+          walls.push({
+            id: `inner-${key}`,
+            start: [wallX, overlapStart],
+            end: [wallX, overlapEnd],
+            hasDoor: true,
+            isOuter: false,
+          });
         }
-      }
-
-      // 检查垂直相邻
-      if (Math.abs((z1 + d1/2) - (z2 - d2/2)) < 0.2) {
-        const wallZ = z1 + d1/2;
-        const xStart = Math.max(x1 - w1/2, x2 - w2/2);
-        const xEnd = Math.min(x1 + w1/2, x2 + w2/2);
-        if (xEnd > xStart) {
-          const key = `h-${wallZ.toFixed(1)}-${xStart.toFixed(1)}-${xEnd.toFixed(1)}`;
-          if (!addedInnerWalls.has(key)) {
-            addedInnerWalls.add(key);
-            walls.push({
-              id: `inner-${room1.id}-${room2.id}-h`,
-              start: [xStart, wallZ],
-              end: [xEnd, wallZ],
-              hasDoor: true
-            });
-          }
+      } else {
+        const wallZ = dir === 'bottom' ? b1.bottom : b1.top;
+        const overlapStart = Math.max(b1.left, b2.left);
+        const overlapEnd = Math.min(b1.right, b2.right);
+        if (overlapEnd > overlapStart + 0.5) {
+          walls.push({
+            id: `inner-${key}`,
+            start: [overlapStart, wallZ],
+            end: [overlapEnd, wallZ],
+            hasDoor: true,
+            isOuter: false,
+          });
         }
       }
     });
   });
 
-  // 去重
-  const uniqueWalls: WallDef[] = [];
+  // Deduplicate walls
+  const uniqueWalls: WallSegment[] = [];
   const seen = new Set<string>();
   walls.forEach(wall => {
     const key = `${wall.start[0].toFixed(2)},${wall.start[1].toFixed(2)}-${wall.end[0].toFixed(2)},${wall.end[1].toFixed(2)}`;
@@ -197,10 +199,38 @@ function generateWalls(rooms: RoomData[]): WallDef[] {
   return uniqueWalls;
 }
 
-/**
- * 墙壁组件
- */
-const Wall: React.FC<{ wall: WallDef; wallHeight: number }> = ({ wall, wallHeight }) => {
+// Generate wall segments excluding overlapping ranges
+function generateWallSegments(start: number, end: number, excludeRanges: [number, number][]): [number, number][] {
+  if (excludeRanges.length === 0) return [[start, end]];
+  
+  // Merge overlapping exclude ranges
+  const sorted = [...excludeRanges].sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  sorted.forEach(range => {
+    if (merged.length === 0 || merged[merged.length - 1][1] < range[0]) {
+      merged.push([...range]);
+    } else {
+      merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], range[1]);
+    }
+  });
+
+  // Generate segments
+  const segments: [number, number][] = [];
+  let current = start;
+  merged.forEach(([exStart, exEnd]) => {
+    if (current < exStart) {
+      segments.push([current, exStart]);
+    }
+    current = Math.max(current, exEnd);
+  });
+  if (current < end) {
+    segments.push([current, end]);
+  }
+
+  return segments.filter(([s, e]) => e - s > 0.1);
+}
+
+const Wall: React.FC<{ wall: WallSegment; wallHeight: number }> = ({ wall, wallHeight }) => {
   const { start, end, hasDoor } = wall;
   const isVertical = Math.abs(start[0] - end[0]) < 0.01;
   const length = isVertical 
@@ -211,7 +241,6 @@ const Wall: React.FC<{ wall: WallDef; wallHeight: number }> = ({ wall, wallHeigh
 
   if (length < 0.1) return null;
 
-  // 带门的墙
   if (hasDoor && length > DOOR_WIDTH + 0.3) {
     const sideLen = (length - DOOR_WIDTH) / 2;
     const topH = wallHeight - DOOR_HEIGHT;
@@ -227,10 +256,12 @@ const Wall: React.FC<{ wall: WallDef; wallHeight: number }> = ({ wall, wallHeigh
             <boxGeometry args={[WALL_THICKNESS, wallHeight, sideLen]} />
             <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
           </mesh>
-          <mesh position={[0, (wallHeight - topH) / 2, 0]}>
-            <boxGeometry args={[WALL_THICKNESS, topH, DOOR_WIDTH]} />
-            <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
-          </mesh>
+          {topH > 0.1 && (
+            <mesh position={[0, (wallHeight - topH) / 2, 0]}>
+              <boxGeometry args={[WALL_THICKNESS, topH, DOOR_WIDTH]} />
+              <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
+            </mesh>
+          )}
         </group>
       );
     } else {
@@ -244,16 +275,17 @@ const Wall: React.FC<{ wall: WallDef; wallHeight: number }> = ({ wall, wallHeigh
             <boxGeometry args={[sideLen, wallHeight, WALL_THICKNESS]} />
             <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
           </mesh>
-          <mesh position={[0, (wallHeight - topH) / 2, 0]}>
-            <boxGeometry args={[DOOR_WIDTH, topH, WALL_THICKNESS]} />
-            <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
-          </mesh>
+          {topH > 0.1 && (
+            <mesh position={[0, (wallHeight - topH) / 2, 0]}>
+              <boxGeometry args={[DOOR_WIDTH, topH, WALL_THICKNESS]} />
+              <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
+            </mesh>
+          )}
         </group>
       );
     }
   }
 
-  // 实心墙
   return (
     <mesh position={[centerX, wallHeight / 2, centerZ]}>
       <boxGeometry args={isVertical ? [WALL_THICKNESS, wallHeight, length] : [length, wallHeight, WALL_THICKNESS]} />
@@ -262,9 +294,6 @@ const Wall: React.FC<{ wall: WallDef; wallHeight: number }> = ({ wall, wallHeigh
   );
 };
 
-/**
- * FloorPlan组件
- */
 export const FloorPlan: React.FC = () => {
   const homeData = useHomeStore((state) => state.homeData);
   const selectedRoom = useHomeStore((state) => state.selectedRoom);
@@ -277,7 +306,6 @@ export const FloorPlan: React.FC = () => {
 
   const walls = useMemo(() => generateWalls(rooms), [rooms]);
 
-  // 计算地基
   const bounds = useMemo(() => {
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     rooms.forEach(room => {
@@ -295,7 +323,6 @@ export const FloorPlan: React.FC = () => {
 
   return (
     <group>
-      {/* 房间 */}
       {rooms.map((room) => (
         <Room
           key={room.id}
@@ -308,12 +335,10 @@ export const FloorPlan: React.FC = () => {
         />
       ))}
 
-      {/* 墙壁 */}
       {walls.map((wall) => (
         <Wall key={wall.id} wall={wall} wallHeight={wallHeight} />
       ))}
 
-      {/* 地基 */}
       <mesh position={[(minX + maxX) / 2, -0.1, (minZ + maxZ) / 2]} receiveShadow>
         <boxGeometry args={[maxX - minX + 0.5, 0.15, maxZ - minZ + 0.5]} />
         <meshStandardMaterial color="#8B7355" />
