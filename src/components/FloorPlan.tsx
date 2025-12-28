@@ -1,170 +1,234 @@
 import { useMemo } from 'react';
 import { Room } from './Room';
 import { useHomeStore } from '../store/useHomeStore';
-import { calculateOuterWalls } from '../data/homeDataLoader';
 import type { RoomData } from '../types/homeData';
 
 // 墙壁样式
 const WALL_COLOR = '#B8D4E8';
-const WALL_OPACITY = 0.4;
+const WALL_OPACITY = 0.5;
 const WALL_THICKNESS = 0.1;
 const DOOR_WIDTH = 0.9;
 const DOOR_HEIGHT = 2.2;
 
-interface WallSegment {
+interface WallDef {
   id: string;
-  x1: number;
-  z1: number;
-  x2: number;
-  z2: number;
+  start: [number, number];
+  end: [number, number];
   hasDoor?: boolean;
 }
 
 /**
- * 计算户型的所有墙壁段
+ * 根据房间布局生成所有墙壁
  */
-function calculateWalls(rooms: RoomData[]): WallSegment[] {
-  const walls: WallSegment[] = [];
-  const bounds = calculateOuterWalls(rooms);
-  const { minX, maxX, minZ, maxZ } = bounds;
+function generateWalls(rooms: RoomData[]): WallDef[] {
+  const walls: WallDef[] = [];
   
-  // 外墙（带门的入口在南墙中间）
-  // 北墙
-  walls.push({ id: 'outer-north', x1: minX, z1: minZ, x2: maxX, z2: minZ });
-  // 南墙（带门）
-  walls.push({ id: 'outer-south', x1: minX, z1: maxZ, x2: maxX, z2: maxZ, hasDoor: true });
-  // 西墙
-  walls.push({ id: 'outer-west', x1: minX, z1: minZ, x2: minX, z2: maxZ });
-  // 东墙
-  walls.push({ id: 'outer-east', x1: maxX, z1: minZ, x2: maxX, z2: maxZ });
+  // 计算整体边界
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  rooms.forEach(room => {
+    const [x, z] = room.position;
+    const [w, d] = room.size;
+    minX = Math.min(minX, x - w/2);
+    maxX = Math.max(maxX, x + w/2);
+    minZ = Math.min(minZ, z - d/2);
+    maxZ = Math.max(maxZ, z + d/2);
+  });
 
-  // 内墙：检测相邻房间边界
-  for (let i = 0; i < rooms.length; i++) {
-    const room1 = rooms[i];
-    const r1x = room1.position[0];
-    const r1z = room1.position[1];
-    const r1w = room1.size[0] / 2;
-    const r1d = room1.size[1] / 2;
-
-    for (let j = i + 1; j < rooms.length; j++) {
-      const room2 = rooms[j];
-      const r2x = room2.position[0];
-      const r2z = room2.position[1];
-      const r2w = room2.size[0] / 2;
-      const r2d = room2.size[1] / 2;
-
-      // 检查是否水平相邻（共享垂直墙）
-      const r1Right = r1x + r1w;
-      const r2Left = r2x - r2w;
-      const r1Left = r1x - r1w;
-      const r2Right = r2x + r2w;
-
-      if (Math.abs(r1Right - r2Left) < 0.5) {
-        // room1 在 room2 左边
-        const zStart = Math.max(r1z - r1d, r2z - r2d);
-        const zEnd = Math.min(r1z + r1d, r2z + r2d);
-        if (zEnd > zStart) {
-          walls.push({
-            id: `inner-${room1.id}-${room2.id}`,
-            x1: r1Right,
-            z1: zStart,
-            x2: r1Right,
-            z2: zEnd,
-            hasDoor: true,
-          });
-        }
-      } else if (Math.abs(r2Right - r1Left) < 0.5) {
-        // room2 在 room1 左边
-        const zStart = Math.max(r1z - r1d, r2z - r2d);
-        const zEnd = Math.min(r1z + r1d, r2z + r2d);
-        if (zEnd > zStart) {
-          walls.push({
-            id: `inner-${room2.id}-${room1.id}`,
-            x1: r1Left,
-            z1: zStart,
-            x2: r1Left,
-            z2: zEnd,
-            hasDoor: true,
-          });
-        }
-      }
-
-      // 检查是否垂直相邻（共享水平墙）
-      const r1Bottom = r1z + r1d;
-      const r2Top = r2z - r2d;
-      const r1Top = r1z - r1d;
-      const r2Bottom = r2z + r2d;
-
-      if (Math.abs(r1Bottom - r2Top) < 0.5) {
-        // room1 在 room2 上面
-        const xStart = Math.max(r1x - r1w, r2x - r2w);
-        const xEnd = Math.min(r1x + r1w, r2x + r2w);
-        if (xEnd > xStart) {
-          walls.push({
-            id: `inner-${room1.id}-${room2.id}-h`,
-            x1: xStart,
-            z1: r1Bottom,
-            x2: xEnd,
-            z2: r1Bottom,
-            hasDoor: true,
-          });
-        }
-      } else if (Math.abs(r2Bottom - r1Top) < 0.5) {
-        // room2 在 room1 上面
-        const xStart = Math.max(r1x - r1w, r2x - r2w);
-        const xEnd = Math.min(r1x + r1w, r2x + r2w);
-        if (xEnd > xStart) {
-          walls.push({
-            id: `inner-${room2.id}-${room1.id}-h`,
-            x1: xStart,
-            z1: r1Top,
-            x2: xEnd,
-            z2: r1Top,
-            hasDoor: true,
-          });
-        }
+  // 用网格标记哪些位置有房间
+  const gridSize = 0.5;
+  const grid: Map<string, string> = new Map();
+  
+  rooms.forEach(room => {
+    const [cx, cz] = room.position;
+    const [w, d] = room.size;
+    for (let x = cx - w/2 + gridSize/2; x < cx + w/2; x += gridSize) {
+      for (let z = cz - d/2 + gridSize/2; z < cz + d/2; z += gridSize) {
+        grid.set(`${Math.round(x*10)},${Math.round(z*10)}`, room.id);
       }
     }
-  }
+  });
 
-  return walls;
+  // 为每个房间生成墙壁
+  rooms.forEach(room => {
+    const [cx, cz] = room.position;
+    const [w, d] = room.size;
+    const left = cx - w/2;
+    const right = cx + w/2;
+    const top = cz - d/2;
+    const bottom = cz + d/2;
+
+    // 检查四边是否需要墙
+    // 北墙 (top)
+    let needNorthWall = true;
+    for (let x = left + gridSize/2; x < right; x += gridSize) {
+      const neighborId = grid.get(`${Math.round(x*10)},${Math.round((top - gridSize)*10)}`);
+      if (neighborId && neighborId !== room.id) {
+        needNorthWall = false;
+        break;
+      }
+    }
+    if (needNorthWall || Math.abs(top - minZ) < 0.1) {
+      walls.push({
+        id: `${room.id}-north`,
+        start: [left, top],
+        end: [right, top],
+        hasDoor: room.type === 'balcony'
+      });
+    }
+
+    // 南墙 (bottom)
+    let needSouthWall = true;
+    for (let x = left + gridSize/2; x < right; x += gridSize) {
+      const neighborId = grid.get(`${Math.round(x*10)},${Math.round((bottom + gridSize)*10)}`);
+      if (neighborId && neighborId !== room.id) {
+        needSouthWall = false;
+        break;
+      }
+    }
+    if (needSouthWall || Math.abs(bottom - maxZ) < 0.1) {
+      walls.push({
+        id: `${room.id}-south`,
+        start: [left, bottom],
+        end: [right, bottom],
+        hasDoor: Math.abs(bottom - maxZ) < 0.1 && room.type === 'balcony'
+      });
+    }
+
+    // 西墙 (left)
+    let needWestWall = true;
+    for (let z = top + gridSize/2; z < bottom; z += gridSize) {
+      const neighborId = grid.get(`${Math.round((left - gridSize)*10)},${Math.round(z*10)}`);
+      if (neighborId && neighborId !== room.id) {
+        needWestWall = false;
+        break;
+      }
+    }
+    if (needWestWall || Math.abs(left - minX) < 0.1) {
+      walls.push({
+        id: `${room.id}-west`,
+        start: [left, top],
+        end: [left, bottom],
+        hasDoor: false
+      });
+    }
+
+    // 东墙 (right)
+    let needEastWall = true;
+    for (let z = top + gridSize/2; z < bottom; z += gridSize) {
+      const neighborId = grid.get(`${Math.round((right + gridSize)*10)},${Math.round(z*10)}`);
+      if (neighborId && neighborId !== room.id) {
+        needEastWall = false;
+        break;
+      }
+    }
+    if (needEastWall || Math.abs(right - maxX) < 0.1) {
+      walls.push({
+        id: `${room.id}-east`,
+        start: [right, top],
+        end: [right, bottom],
+        hasDoor: false
+      });
+    }
+  });
+
+  // 添加房间之间的隔墙（带门）
+  const addedInnerWalls = new Set<string>();
+  rooms.forEach(room1 => {
+    rooms.forEach(room2 => {
+      if (room1.id >= room2.id) return;
+      
+      const [x1, z1] = room1.position;
+      const [w1, d1] = room1.size;
+      const [x2, z2] = room2.position;
+      const [w2, d2] = room2.size;
+
+      // 检查水平相邻
+      if (Math.abs((x1 + w1/2) - (x2 - w2/2)) < 0.2) {
+        const wallX = x1 + w1/2;
+        const zStart = Math.max(z1 - d1/2, z2 - d2/2);
+        const zEnd = Math.min(z1 + d1/2, z2 + d2/2);
+        if (zEnd > zStart) {
+          const key = `v-${wallX.toFixed(1)}-${zStart.toFixed(1)}-${zEnd.toFixed(1)}`;
+          if (!addedInnerWalls.has(key)) {
+            addedInnerWalls.add(key);
+            walls.push({
+              id: `inner-${room1.id}-${room2.id}`,
+              start: [wallX, zStart],
+              end: [wallX, zEnd],
+              hasDoor: true
+            });
+          }
+        }
+      }
+
+      // 检查垂直相邻
+      if (Math.abs((z1 + d1/2) - (z2 - d2/2)) < 0.2) {
+        const wallZ = z1 + d1/2;
+        const xStart = Math.max(x1 - w1/2, x2 - w2/2);
+        const xEnd = Math.min(x1 + w1/2, x2 + w2/2);
+        if (xEnd > xStart) {
+          const key = `h-${wallZ.toFixed(1)}-${xStart.toFixed(1)}-${xEnd.toFixed(1)}`;
+          if (!addedInnerWalls.has(key)) {
+            addedInnerWalls.add(key);
+            walls.push({
+              id: `inner-${room1.id}-${room2.id}-h`,
+              start: [xStart, wallZ],
+              end: [xEnd, wallZ],
+              hasDoor: true
+            });
+          }
+        }
+      }
+    });
+  });
+
+  // 去重
+  const uniqueWalls: WallDef[] = [];
+  const seen = new Set<string>();
+  walls.forEach(wall => {
+    const key = `${wall.start[0].toFixed(2)},${wall.start[1].toFixed(2)}-${wall.end[0].toFixed(2)},${wall.end[1].toFixed(2)}`;
+    const keyReverse = `${wall.end[0].toFixed(2)},${wall.end[1].toFixed(2)}-${wall.start[0].toFixed(2)},${wall.start[1].toFixed(2)}`;
+    if (!seen.has(key) && !seen.has(keyReverse)) {
+      seen.add(key);
+      uniqueWalls.push(wall);
+    }
+  });
+
+  return uniqueWalls;
 }
 
 /**
- * 渲染墙壁段
+ * 墙壁组件
  */
-const WallSegmentMesh: React.FC<{
-  wall: WallSegment;
-  wallHeight: number;
-}> = ({ wall, wallHeight }) => {
-  const { x1, z1, x2, z2, hasDoor } = wall;
-  const isVertical = Math.abs(x1 - x2) < 0.01;
-  const length = isVertical ? Math.abs(z2 - z1) : Math.abs(x2 - x1);
-  const centerX = (x1 + x2) / 2;
-  const centerZ = (z1 + z2) / 2;
+const Wall: React.FC<{ wall: WallDef; wallHeight: number }> = ({ wall, wallHeight }) => {
+  const { start, end, hasDoor } = wall;
+  const isVertical = Math.abs(start[0] - end[0]) < 0.01;
+  const length = isVertical 
+    ? Math.abs(end[1] - start[1]) 
+    : Math.abs(end[0] - start[0]);
+  const centerX = (start[0] + end[0]) / 2;
+  const centerZ = (start[1] + end[1]) / 2;
 
-  if (hasDoor && length > DOOR_WIDTH + 0.5) {
-    // 墙带门
-    const doorPos = 0; // 门在中间
-    const sideLength = (length - DOOR_WIDTH) / 2;
-    const topHeight = wallHeight - DOOR_HEIGHT;
+  if (length < 0.1) return null;
+
+  // 带门的墙
+  if (hasDoor && length > DOOR_WIDTH + 0.3) {
+    const sideLen = (length - DOOR_WIDTH) / 2;
+    const topH = wallHeight - DOOR_HEIGHT;
 
     if (isVertical) {
       return (
         <group position={[centerX, wallHeight / 2, centerZ]}>
-          {/* 上半部分 */}
-          <mesh position={[0, (wallHeight - topHeight) / 2, doorPos]}>
-            <boxGeometry args={[WALL_THICKNESS, topHeight, DOOR_WIDTH]} />
+          <mesh position={[0, 0, -(length/2 - sideLen/2)]}>
+            <boxGeometry args={[WALL_THICKNESS, wallHeight, sideLen]} />
             <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
           </mesh>
-          {/* 左侧 */}
-          <mesh position={[0, 0, -(length / 2 - sideLength / 2)]}>
-            <boxGeometry args={[WALL_THICKNESS, wallHeight, sideLength]} />
+          <mesh position={[0, 0, (length/2 - sideLen/2)]}>
+            <boxGeometry args={[WALL_THICKNESS, wallHeight, sideLen]} />
             <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
           </mesh>
-          {/* 右侧 */}
-          <mesh position={[0, 0, (length / 2 - sideLength / 2)]}>
-            <boxGeometry args={[WALL_THICKNESS, wallHeight, sideLength]} />
+          <mesh position={[0, (wallHeight - topH) / 2, 0]}>
+            <boxGeometry args={[WALL_THICKNESS, topH, DOOR_WIDTH]} />
             <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
           </mesh>
         </group>
@@ -172,19 +236,16 @@ const WallSegmentMesh: React.FC<{
     } else {
       return (
         <group position={[centerX, wallHeight / 2, centerZ]}>
-          {/* 上半部分 */}
-          <mesh position={[doorPos, (wallHeight - topHeight) / 2, 0]}>
-            <boxGeometry args={[DOOR_WIDTH, topHeight, WALL_THICKNESS]} />
+          <mesh position={[-(length/2 - sideLen/2), 0, 0]}>
+            <boxGeometry args={[sideLen, wallHeight, WALL_THICKNESS]} />
             <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
           </mesh>
-          {/* 左侧 */}
-          <mesh position={[-(length / 2 - sideLength / 2), 0, 0]}>
-            <boxGeometry args={[sideLength, wallHeight, WALL_THICKNESS]} />
+          <mesh position={[(length/2 - sideLen/2), 0, 0]}>
+            <boxGeometry args={[sideLen, wallHeight, WALL_THICKNESS]} />
             <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
           </mesh>
-          {/* 右侧 */}
-          <mesh position={[(length / 2 - sideLength / 2), 0, 0]}>
-            <boxGeometry args={[sideLength, wallHeight, WALL_THICKNESS]} />
+          <mesh position={[0, (wallHeight - topH) / 2, 0]}>
+            <boxGeometry args={[DOOR_WIDTH, topH, WALL_THICKNESS]} />
             <meshStandardMaterial color={WALL_COLOR} transparent opacity={WALL_OPACITY} />
           </mesh>
         </group>
@@ -202,7 +263,7 @@ const WallSegmentMesh: React.FC<{
 };
 
 /**
- * FloorPlan组件 - 渲染户型
+ * FloorPlan组件
  */
 export const FloorPlan: React.FC = () => {
   const homeData = useHomeStore((state) => state.homeData);
@@ -214,20 +275,27 @@ export const FloorPlan: React.FC = () => {
   const { meta, rooms } = homeData!;
   const { wallHeight } = meta;
 
-  // 计算墙壁
-  const walls = useMemo(() => calculateWalls(rooms), [rooms]);
+  const walls = useMemo(() => generateWalls(rooms), [rooms]);
 
-  // 计算地基边界
-  const outerBounds = useMemo(() => calculateOuterWalls(rooms), [rooms]);
-  const { minX, maxX, minZ, maxZ } = outerBounds;
-  const totalWidth = maxX - minX;
-  const totalDepth = maxZ - minZ;
-  const centerX = (minX + maxX) / 2;
-  const centerZ = (minZ + maxZ) / 2;
+  // 计算地基
+  const bounds = useMemo(() => {
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    rooms.forEach(room => {
+      const [x, z] = room.position;
+      const [w, d] = room.size;
+      minX = Math.min(minX, x - w/2);
+      maxX = Math.max(maxX, x + w/2);
+      minZ = Math.min(minZ, z - d/2);
+      maxZ = Math.max(maxZ, z + d/2);
+    });
+    return { minX, maxX, minZ, maxZ };
+  }, [rooms]);
+
+  const { minX, maxX, minZ, maxZ } = bounds;
 
   return (
     <group>
-      {/* 渲染所有房间（地板+设备） */}
+      {/* 房间 */}
       {rooms.map((room) => (
         <Room
           key={room.id}
@@ -240,14 +308,14 @@ export const FloorPlan: React.FC = () => {
         />
       ))}
 
-      {/* 渲染所有墙壁 */}
+      {/* 墙壁 */}
       {walls.map((wall) => (
-        <WallSegmentMesh key={wall.id} wall={wall} wallHeight={wallHeight} />
+        <Wall key={wall.id} wall={wall} wallHeight={wallHeight} />
       ))}
 
       {/* 地基 */}
-      <mesh position={[centerX, -0.1, centerZ]} receiveShadow>
-        <boxGeometry args={[totalWidth + 0.5, 0.15, totalDepth + 0.5]} />
+      <mesh position={[(minX + maxX) / 2, -0.1, (minZ + maxZ) / 2]} receiveShadow>
+        <boxGeometry args={[maxX - minX + 0.5, 0.15, maxZ - minZ + 0.5]} />
         <meshStandardMaterial color="#8B7355" />
       </mesh>
     </group>

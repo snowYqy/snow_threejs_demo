@@ -12,15 +12,13 @@
       "name": "客厅",
       "type": "living",
       "position": [0, 0],
-      "size": [6, 5],
+      "size": [6, 4],
       "color": "#F5E6D3",
       "devices": [
         { "id": "living-light-1", "type": "light", "name": "主灯", "offset": [0, 0], "isOn": true },
-        { "id": "living-ac", "type": "ac", "name": "空调", "offset": [0, -2.2], "isOn": false },
-        { "id": "living-tv", "type": "tv", "name": "电视", "offset": [0, -2], "isOn": true },
-        { "id": "living-fan", "type": "fan", "name": "落地扇", "offset": [2, 1.5], "isOn": true },
-        { "id": "living-speaker", "type": "speaker", "name": "智能音箱", "offset": [-2, -1.5], "isOn": false },
-        { "id": "living-curtain", "type": "curtain", "name": "窗帘", "offset": [2.8, 0], "isOn": true }
+        { "id": "living-ac", "type": "ac", "name": "空调", "offset": [0, -1.7], "isOn": false },
+        { "id": "living-tv", "type": "tv", "name": "电视", "offset": [0, -1.5], "isOn": true },
+        { "id": "living-fan", "type": "fan", "name": "落地扇", "offset": [2.2, 1], "isOn": true }
       ]
     },
     {
@@ -28,71 +26,55 @@
       "name": "餐厅",
       "type": "dining",
       "position": [-4.5, 0],
-      "size": [3, 5],
+      "size": [3, 4],
       "color": "#E8D5B7",
       "devices": [
-        { "id": "dining-light", "type": "light", "name": "餐厅灯", "offset": [0, 0], "isOn": true },
-        { "id": "dining-ac", "type": "ac", "name": "空调", "offset": [0, -2.2], "isOn": false }
+        { "id": "dining-light", "type": "light", "name": "餐厅灯", "offset": [0, 0], "isOn": true }
       ]
     },
     {
       "id": "kitchen",
       "name": "厨房",
       "type": "kitchen",
-      "position": [-4.5, -4],
+      "position": [-4.5, -3.5],
       "size": [3, 3],
       "color": "#FADBD8",
       "devices": [
         { "id": "kitchen-light", "type": "light", "name": "厨房灯", "offset": [0, 0], "isOn": true },
-        { "id": "kitchen-purifier", "type": "purifier", "name": "空气净化器", "offset": [1, 1], "isOn": true }
+        { "id": "kitchen-purifier", "type": "purifier", "name": "净化器", "offset": [0.8, 0.8], "isOn": true }
       ]
     },
     {
       "id": "master-bedroom",
       "name": "主卧",
       "type": "bedroom",
-      "position": [5, 2.5],
-      "size": [4, 4],
+      "position": [4.5, 0],
+      "size": [3, 4],
       "color": "#D4E6F1",
       "devices": [
         { "id": "master-light", "type": "light", "name": "主卧灯", "offset": [0, 0], "isOn": false },
         { "id": "master-ac", "type": "ac", "name": "空调", "offset": [0, -1.7], "isOn": true },
-        { "id": "master-curtain", "type": "curtain", "name": "窗帘", "offset": [1.8, 0], "isOn": false },
-        { "id": "master-humidifier", "type": "humidifier", "name": "加湿器", "offset": [-1.5, 1.5], "isOn": true }
+        { "id": "master-curtain", "type": "curtain", "name": "窗帘", "offset": [1.3, 0], "isOn": false }
       ]
     },
     {
       "id": "second-bedroom",
       "name": "次卧",
       "type": "bedroom",
-      "position": [5, -1.75],
-      "size": [4, 3.5],
+      "position": [4.5, -3.5],
+      "size": [3, 3],
       "color": "#D5F5E3",
       "devices": [
         { "id": "second-light", "type": "light", "name": "次卧灯", "offset": [0, 0], "isOn": true },
-        { "id": "second-ac", "type": "ac", "name": "空调", "offset": [0, -1.5], "isOn": false },
-        { "id": "second-fan", "type": "fan", "name": "落地扇", "offset": [1.5, 1], "isOn": false }
-      ]
-    },
-    {
-      "id": "study-room",
-      "name": "书房",
-      "type": "study",
-      "position": [-4.5, -6.75],
-      "size": [3, 2.5],
-      "color": "#FCF3CF",
-      "devices": [
-        { "id": "study-light", "type": "light", "name": "书房灯", "offset": [0, 0], "isOn": true },
-        { "id": "study-heater", "type": "heater", "name": "取暖器", "offset": [1, 0.8], "isOn": false },
-        { "id": "study-speaker", "type": "speaker", "name": "音箱", "offset": [-1, -0.8], "isOn": true }
+        { "id": "second-fan", "type": "fan", "name": "落地扇", "offset": [0.8, 0.8], "isOn": false }
       ]
     },
     {
       "id": "bathroom",
       "name": "卫生间",
       "type": "bathroom",
-      "position": [0, -3.75],
-      "size": [2.5, 2.5],
+      "position": [0, -3.5],
+      "size": [3, 3],
       "color": "#E8DAEF",
       "devices": [
         { "id": "bath-light", "type": "light", "name": "浴室灯", "offset": [0, 0], "isOn": true },
@@ -103,25 +85,13 @@
       "id": "balcony",
       "name": "阳台",
       "type": "balcony",
-      "position": [0, 4],
-      "size": [6, 1.5],
+      "position": [0, 3],
+      "size": [6, 2],
       "color": "#ABEBC6",
       "devices": [
         { "id": "balcony-light", "type": "light", "name": "阳台灯", "offset": [0, 0], "isOn": false }
       ]
     }
   ],
-  "walls": [
-    { "id": "wall-1", "from": [-3, -1.5], "to": [-3, 1.5] },
-    { "id": "wall-2", "from": [3, -0.5], "to": [3, 2.5] },
-    { "id": "wall-3", "from": [3, -3.5], "to": [3, -0.5] },
-    { "id": "wall-4", "from": [-1.25, -2.5], "to": [1.25, -2.5] },
-    { "id": "wall-5", "from": [-3, 3.25], "to": [-2, 3.25] },
-    { "id": "wall-6", "from": [2, 3.25], "to": [3, 3.25] },
-    { "id": "wall-7", "from": [-6, -2.5], "to": [-3, -2.5] },
-    { "id": "wall-8", "from": [-6, -5.5], "to": [-3, -5.5] },
-    { "id": "wall-9", "from": [3, 0.5], "to": [7, 0.5] },
-    { "id": "wall-10", "from": [1.25, -3], "to": [1.25, -4.5] },
-    { "id": "wall-11", "from": [-1.25, -3.5], "to": [-1.25, -5] }
-  ]
+  "walls": []
 }
