@@ -15,6 +15,7 @@ interface HomeState {
   
   // Actions
   fetchHomeData: (url?: string) => Promise<void>;
+  setHomeData: (data: HomeData) => void;
   selectRoom: (roomId: string | null) => void;
   toggleRoom: (roomId: string) => void;
   hoverRoom: (roomId: string | null) => void;
@@ -51,6 +52,16 @@ export const useHomeStore = create<HomeState>((set, get) => ({
         loading: false,
       });
     }
+  },
+
+  // 直接设置户型数据（用于识别结果）
+  setHomeData: (data) => {
+    set({
+      homeData: data,
+      roomNames: getRoomNames(data.rooms),
+      selectedRoom: null,
+      hoveredRoom: null,
+    });
   },
 
   // 选择房间

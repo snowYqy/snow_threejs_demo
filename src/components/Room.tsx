@@ -1,9 +1,10 @@
 import { useRef, useMemo } from 'react';
 import { Mesh, Color } from 'three';
-import { Edges } from '@react-three/drei';
+import { Edges, useTexture } from '@react-three/drei';
 import { Device } from './Device';
 import type { RoomData } from '../types/homeData';
 import { getRoomPosition, getRoomSize } from '../data/homeDataLoader';
+import * as THREE from 'three';
 
 interface RoomProps {
   data: RoomData;
@@ -32,6 +33,16 @@ export const Room: React.FC<RoomProps> = ({
   const floorRef = useRef<Mesh>(null);
   const position = getRoomPosition(data, wallHeight);
   const [width, height, depth] = getRoomSize(data, wallHeight);
+
+  const floorTexture = useTexture('/textures/laminate_floor_02_diff_2k.jpg');
+
+
+useMemo(() => {
+  floorTexture.wrapS = THREE.RepeatWrapping;
+  floorTexture.wrapT = THREE.RepeatWrapping;
+  floorTexture.repeat.set(width / 2, depth / 2);
+  floorTexture.colorSpace = THREE.SRGBColorSpace;
+}, [floorTexture, width, depth]);
 
   const floorColor = useMemo(() => {
     const baseColor = new Color(FLOOR_COLOR);
@@ -69,11 +80,13 @@ export const Room: React.FC<RoomProps> = ({
         receiveShadow
       >
         <boxGeometry args={[width, 0.1, depth]} />
-        <meshStandardMaterial 
-          color={floorColor} 
-          roughness={0.75}
-          metalness={0}
-        />
+       <meshStandardMaterial
+    map={floorTexture}
+    roughness={0.75}
+    metalness={0}
+    emissive={floorColor}
+    emissiveIntensity={isSelected ? 0.12 : isHovered ? 0.06 : 0}
+  />
         {edgeColor && <Edges color={edgeColor} linewidth={2} threshold={15} />}
       </mesh>
 

@@ -5,6 +5,7 @@ import type { DeviceData } from '../types/homeData';
 import { DEVICE_COLORS } from '../types/homeData';
 import { getDeviceOffset, getDeviceSize } from '../data/homeDataLoader';
 import { useHomeStore } from '../store/useHomeStore';
+import { FanA } from './Fan';
 
 interface DeviceProps {
   data: DeviceData;
@@ -55,12 +56,12 @@ const Curtain: React.FC<{
       {/* 窗帘杆 */}
       <mesh position={[0, height / 2 - 0.05, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.02, 0.02, depth, 8]} />
-        <meshStandardMaterial color="#8B4513" />
+        <meshPhysicalMaterial color="#098231" />
       </mesh>
       {/* 窗帘布 - 带动画 */}
       <mesh ref={curtainRef} position={[0, isOn ? 0 : height / 4, 0]}>
         <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial 
+        <meshPhysicalMaterial 
           color={deviceColor} 
           transparent 
           opacity={0.8}
@@ -73,69 +74,9 @@ const Curtain: React.FC<{
           position={[0, height / 2 - 0.05, (i - 2) * (depth / 5)]}
         >
           <torusGeometry args={[0.03, 0.008, 8, 16]} />
-          <meshStandardMaterial color="#A0522D" />
+          <meshPhysicalMaterial color="#098231" />
         </mesh>
       ))}
-    </group>
-  );
-};
-
-/**
- * 风扇组件 - 带旋转动画
- */
-const Fan: React.FC<{
-  width: number;
-  height: number;
-  isOn: boolean;
-  deviceColor: Color;
-}> = ({ height, isOn, deviceColor }) => {
-  const bladeRef = useRef<Mesh>(null);
-
-  useFrame((_, delta) => {
-    if (bladeRef.current && isOn) {
-      bladeRef.current.rotation.z += delta * 10; // 旋转速度
-    }
-  });
-
-  return (
-    <group>
-      {/* 底座 */}
-      <mesh position={[0, -height / 2 + 0.05, 0]}>
-        <cylinderGeometry args={[0.2, 0.25, 0.1, 16]} />
-        <meshStandardMaterial color="#333333" />
-      </mesh>
-      {/* 支柱 */}
-      <mesh position={[0, 0, 0]}>
-        <cylinderGeometry args={[0.03, 0.03, height - 0.3, 8]} />
-        <meshStandardMaterial color="#666666" />
-      </mesh>
-      {/* 风扇头外壳 */}
-      <mesh position={[0, height / 2 - 0.2, 0.1]}>
-        <cylinderGeometry args={[0.22, 0.22, 0.08, 16]} />
-        <meshStandardMaterial color={deviceColor} />
-      </mesh>
-      {/* 扇叶 - 带旋转动画 */}
-      <group position={[0, height / 2 - 0.2, 0.15]}>
-        <mesh ref={bladeRef}>
-          {/* 三片扇叶 */}
-          {[0, 1, 2].map((i) => (
-            <mesh key={i} rotation={[0, 0, (i * Math.PI * 2) / 3]}>
-              <boxGeometry args={[0.02, 0.15, 0.01]} />
-              <meshStandardMaterial color={isOn ? '#E0E0E0' : '#888888'} />
-            </mesh>
-          ))}
-        </mesh>
-        {/* 中心 */}
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.03, 0.03, 0.02, 16]} />
-          <meshStandardMaterial color="#444444" />
-        </mesh>
-      </group>
-      {/* 防护网 */}
-      <mesh position={[0, height / 2 - 0.2, 0.18]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.18, 0.01, 8, 24]} />
-        <meshStandardMaterial color="#AAAAAA" />
-      </mesh>
     </group>
   );
 };
@@ -234,7 +175,14 @@ export const Device: React.FC<DeviceProps> = ({ data, wallHeight, roomId }) => {
         );
 
       case 'fan':
-        return <Fan width={width} height={height} isOn={isOn} deviceColor={deviceColor} />;
+        // 使用自定义 GLB 模型
+        return (
+          <FanA
+            position={[0, -height / 2 + 0.1, 0]}
+            scale={0.005}
+            on={isOn}
+          />
+        );
 
       case 'curtain':
         return <Curtain width={width} height={height} depth={depth} isOn={isOn} deviceColor={deviceColor} />;
