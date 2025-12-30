@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import type { Vertex, Wall, Room, Door, Window, ToolType, EditorError } from '../types';
-import { findAllCycles, buildGraph } from '../engine/geometry';
-import { validateAll } from '../engine/rules';
+import type { Vertex, Wall, Room, Door, Window, ToolType, EditorError, ValidationResult } from '../types';
+import { EDITOR_CONFIG } from '../types';
+import { findAllCycles, buildGraph, calculatePolygonArea } from '../engine/geometry';
+import { validateAll, autoSnapVertex, autoCorrectDoorWindowPosition, inferRoomType } from '../engine/rules';
 import type { FloorPlanPreset } from '../data/presets';
 
 // Room colors palette
@@ -37,6 +38,9 @@ interface EditorState {
   hoveredId: string | null;
   errors: EditorError[];
   
+  // Validation Result
+  validationResult: ValidationResult | null;
+  
   // Drawing State
   drawingVertexId: string | null;
   previewPoint: { x: number; y: number } | null;
@@ -48,6 +52,7 @@ interface EditorState {
   // Actions
   setActiveTool: (tool: ToolType) => void;
   addVertex: (x: number, y: number) => string;
+  addVertexWithSnap: (x: number, y: number) => string; // L3-1 自动吸附
   addWall: (startId: string, endId: string) => string;
   deleteWall: (id: string) => void;
   deleteVertex: (id: string) => void;
@@ -56,6 +61,7 @@ interface EditorState {
   deleteDoor: (id: string) => void;
   deleteWindow: (id: string) => void;
   moveVertex: (id: string, x: number, y: number) => void;
+  moveVertexWithSnap: (id: string, x: number, y: number) => void; // L3-1 自动吸附
   
   // Selection
   setSelectedIds: (ids: string[]) => void;
@@ -77,6 +83,12 @@ interface EditorState {
   // Computed
   recalculateRooms: () => void;
   validateAllData: () => void;
+  
+  // L3 自动修复
+  autoFixErrors: () => void;
+  
+  // Export check
+  canExport: () => boolean;
   
   // Utility
   getVertexById: (id: string) => Vertex | undefined;
@@ -100,6 +112,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   hoveredId: null,
   errors: [],
   
+  // Initial Validation Result
+  validationResult: null,
+  
   // Initial Drawing State
   drawingVertexId: null,
   previewPoint: null,
@@ -122,6 +137,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return { vertices: newVertices };
     });
     return id;
+  },
+  
+  // L3-1 自动吸附版本
+  addVertexWithSnap: (x, y) => {
+    const state = get();
+    const snappedPoint = autoSnapVertex({ x, y }, state.vertices);
+    
+    // 检查是否吸附到已有顶点
+    let existingId: string | null = null;
+    state.vertices.forEach((v, id) => {
+      if (Math.abs(v.x - snappedPoint.x) < 0.1 && Math.abs(v.y - snappedPoint.y) < 0.1) {
+        existingId = id;
+      }
+    });
+    
+    if (existingId) return existingId;
+    
+    return get().addVertex(snappedPoint.x, snappedPoint.y);
   },
   
   addWall: (startId, endId) => {
@@ -214,8 +247,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   
   addDoor: (wallId, position) => {
+    const state = get();
+    const wall = state.walls.get(wallId);
+    if (!wall) return;
+    
+    // L3-4 自动纠偏门位置
+    const startVertex = state.vertices.get(wall.startVertexId);
+    const endVertex = state.vertices.get(wall.endVertexId);
+    if (!startVertex || !endVertex) return;
+    
+    const wallLength = Math.sqrt(
+      Math.pow(endVertex.x - startVertex.x, 2) + 
+      Math.pow(endVertex.y - startVertex.y, 2)
+    );
+    
+    const correctedPosition = autoCorrectDoorWindowPosition(position, 40, wallLength);
+    
     const id = generateId('d');
-    const door: Door = { id, wallId, position, width: 40, direction: 'left' };
+    const door: Door = { id, wallId, position: correctedPosition, width: 40, direction: 'left' };
     set((state) => {
       const newDoors = new Map(state.doors);
       newDoors.set(id, door);
@@ -225,8 +274,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   
   addWindow: (wallId, position) => {
+    const state = get();
+    const wall = state.walls.get(wallId);
+    if (!wall) return;
+    
+    // L3-4 自动纠偏窗位置
+    const startVertex = state.vertices.get(wall.startVertexId);
+    const endVertex = state.vertices.get(wall.endVertexId);
+    if (!startVertex || !endVertex) return;
+    
+    const wallLength = Math.sqrt(
+      Math.pow(endVertex.x - startVertex.x, 2) + 
+      Math.pow(endVertex.y - startVertex.y, 2)
+    );
+    
+    const correctedPosition = autoCorrectDoorWindowPosition(position, 60, wallLength);
+    
     const id = generateId('win');
-    const window: Window = { id, wallId, position, width: 60, height: 40 };
+    const window: Window = { id, wallId, position: correctedPosition, width: 60, height: 40 };
     set((state) => {
       const newWindows = new Map(state.windows);
       newWindows.set(id, window);
@@ -264,6 +329,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       get().recalculateRooms();
       get().validateAllData();
     }, 0);
+  },
+  
+  // L3-1 自动吸附版本
+  moveVertexWithSnap: (id, x, y) => {
+    const state = get();
+    const snappedPoint = autoSnapVertex({ x, y }, state.vertices, id);
+    get().moveVertex(id, snappedPoint.x, snappedPoint.y);
   },
   
   // Selection
@@ -336,12 +408,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const newRooms = new Map<string, Room>();
     cycles.forEach((cycle, index) => {
       const roomId = generateId('r');
-      newRooms.set(roomId, {
+      
+      // 计算房间面积
+      const points = cycle
+        .map(id => state.vertices.get(id))
+        .filter((v): v is Vertex => v !== undefined);
+      const area = points.length >= 3 ? calculatePolygonArea(points) : 0;
+      
+      // L4-1 推断房间类型
+      const roomData: Room = {
         id: roomId,
         vertexIds: cycle,
         color: getNextColor(),
         name: `房间 ${index + 1}`,
-      });
+        area,
+      };
+      
+      // 推断房间类型
+      roomData.type = inferRoomType(roomData, state.vertices, state.doors, state.walls);
+      
+      newRooms.set(roomId, roomData);
     });
     
     set({ rooms: newRooms });
@@ -349,14 +435,72 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   
   validateAllData: () => {
     const state = get();
-    const errors = validateAll(
+    const result = validateAll(
       state.vertices,
       state.walls,
       state.rooms,
       state.doors,
       state.windows
     );
-    set({ errors });
+    set({ 
+      errors: [...result.errors, ...result.warnings],
+      validationResult: result,
+    });
+  },
+  
+  // L3 自动修复
+  autoFixErrors: () => {
+    const state = get();
+    const newDoors = new Map(state.doors);
+    const newWindows = new Map(state.windows);
+    
+    // 修复门窗位置
+    state.doors.forEach((door, doorId) => {
+      const wall = state.walls.get(door.wallId);
+      if (!wall) return;
+      
+      const startVertex = state.vertices.get(wall.startVertexId);
+      const endVertex = state.vertices.get(wall.endVertexId);
+      if (!startVertex || !endVertex) return;
+      
+      const wallLength = Math.sqrt(
+        Math.pow(endVertex.x - startVertex.x, 2) + 
+        Math.pow(endVertex.y - startVertex.y, 2)
+      );
+      
+      const correctedPosition = autoCorrectDoorWindowPosition(door.position, door.width, wallLength);
+      if (correctedPosition !== door.position) {
+        newDoors.set(doorId, { ...door, position: correctedPosition });
+      }
+    });
+    
+    state.windows.forEach((window, windowId) => {
+      const wall = state.walls.get(window.wallId);
+      if (!wall) return;
+      
+      const startVertex = state.vertices.get(wall.startVertexId);
+      const endVertex = state.vertices.get(wall.endVertexId);
+      if (!startVertex || !endVertex) return;
+      
+      const wallLength = Math.sqrt(
+        Math.pow(endVertex.x - startVertex.x, 2) + 
+        Math.pow(endVertex.y - startVertex.y, 2)
+      );
+      
+      const correctedPosition = autoCorrectDoorWindowPosition(window.position, window.width, wallLength);
+      if (correctedPosition !== window.position) {
+        newWindows.set(windowId, { ...window, position: correctedPosition });
+      }
+    });
+    
+    set({ doors: newDoors, windows: newWindows });
+    get().validateAllData();
+  },
+  
+  // 检查是否可以导出
+  canExport: () => {
+    const state = get();
+    return state.validationResult?.canExport ?? false;
   },
   
   // Utility

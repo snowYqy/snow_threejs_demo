@@ -14,7 +14,7 @@ interface FloorPlanEditorProps {
 export interface ExportData {
   vertices: Array<{ id: string; x: number; y: number }>;
   walls: Array<{ id: string; startVertexId: string; endVertexId: string; thickness: number }>;
-  rooms: Array<{ id: string; vertexIds: string[]; name: string }>;
+  rooms: Array<{ id: string; vertexIds: string[]; name: string; type?: string; area?: number }>;
   doors: Array<{ id: string; wallId: string; position: number; width: number; direction: string }>;
   windows: Array<{ id: string; wallId: string; position: number; width: number; height: number }>;
 }
@@ -25,15 +25,21 @@ export const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ onExport, onCl
   
   const {
     activeTool, setActiveTool, errors, vertices, walls, rooms, doors, windows,
-    setSelectedIds, loadPreset, clearAll,
+    setSelectedIds, loadPreset, clearAll, validationResult, canExport,
   } = useEditorStore();
 
   const handleExport = () => {
-    if (errors.length > 0) return;
+    if (!canExport()) return;
     const exportData: ExportData = {
       vertices: Array.from(vertices.values()),
       walls: Array.from(walls.values()),
-      rooms: Array.from(rooms.values()).map(r => ({ id: r.id, vertexIds: r.vertexIds, name: r.name })),
+      rooms: Array.from(rooms.values()).map(r => ({ 
+        id: r.id, 
+        vertexIds: r.vertexIds, 
+        name: r.name,
+        type: r.type,
+        area: r.area,
+      })),
       doors: Array.from(doors.values()).map(d => ({ id: d.id, wallId: d.wallId, position: d.position, width: d.width, direction: d.direction })),
       windows: Array.from(windows.values()).map(w => ({ id: w.id, wallId: w.wallId, position: w.position, width: w.width, height: w.height })),
     };
@@ -51,6 +57,9 @@ export const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ onExport, onCl
     delete: '点击删除', door: '点击墙体添加门', window: '点击墙体添加窗',
   };
 
+  // 检查是否可以导出
+  const exportDisabled = !canExport();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#fff' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: isMobile ? '8px 12px' : '12px 16px', borderBottom: '1px solid #e0e0e0' }}>
@@ -65,12 +74,17 @@ export const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ onExport, onCl
         </div>
       </div>
       
-      <Toolbar activeTool={activeTool} onToolChange={setActiveTool} hasErrors={errors.length > 0} onExport={handleExport} isMobile={isMobile} />
+      <Toolbar activeTool={activeTool} onToolChange={setActiveTool} hasErrors={exportDisabled} onExport={handleExport} isMobile={isMobile} />
       
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <EditorCanvas />
         {showPresets && <PresetSelector onSelect={handlePresetSelect} onClear={clearAll} isMobile={isMobile} />}
-        <ErrorPanel errors={errors} onErrorClick={(id) => setSelectedIds([id])} isMobile={isMobile} />
+        <ErrorPanel 
+          errors={errors} 
+          validationResult={validationResult}
+          onErrorClick={(id) => setSelectedIds([id])} 
+          isMobile={isMobile} 
+        />
       </div>
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: isMobile ? '6px 12px' : '8px 16px', borderTop: '1px solid #e0e0e0', backgroundColor: '#f5f5f5', fontSize: isMobile ? '11px' : '13px', color: '#666', flexWrap: 'wrap', gap: '4px' }}>

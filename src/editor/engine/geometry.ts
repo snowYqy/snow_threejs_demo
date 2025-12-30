@@ -69,6 +69,104 @@ export function isPointInPolygon(point: Point, polygon: Point[]): boolean {
 }
 
 /**
+ * L2-2 检查两个多边形是否重叠（不包括共享边界）
+ */
+export function doPolygonsOverlap(poly1: Point[], poly2: Point[]): boolean {
+  if (poly1.length < 3 || poly2.length < 3) return false;
+  
+  // 检查poly1的任意点是否在poly2内部（排除边界点）
+  for (const point of poly1) {
+    if (isPointStrictlyInPolygon(point, poly2)) {
+      return true;
+    }
+  }
+  
+  // 检查poly2的任意点是否在poly1内部
+  for (const point of poly2) {
+    if (isPointStrictlyInPolygon(point, poly1)) {
+      return true;
+    }
+  }
+  
+  // 检查边是否相交（不包括共享边）
+  for (let i = 0; i < poly1.length; i++) {
+    const p1 = poly1[i];
+    const p2 = poly1[(i + 1) % poly1.length];
+    
+    for (let j = 0; j < poly2.length; j++) {
+      const p3 = poly2[j];
+      const p4 = poly2[(j + 1) % poly2.length];
+      
+      // 跳过共享边
+      if (isSharedEdge(p1, p2, p3, p4)) continue;
+      
+      if (doSegmentsIntersectStrict(p1, p2, p3, p4)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * 严格检查点是否在多边形内部（不包括边界）
+ */
+function isPointStrictlyInPolygon(point: Point, polygon: Point[]): boolean {
+  // 首先检查点是否在边界上
+  for (let i = 0; i < polygon.length; i++) {
+    const p1 = polygon[i];
+    const p2 = polygon[(i + 1) % polygon.length];
+    if (isPointOnSegment(point, p1, p2)) {
+      return false; // 在边界上不算内部
+    }
+  }
+  return isPointInPolygon(point, polygon);
+}
+
+/**
+ * 检查点是否在线段上
+ */
+function isPointOnSegment(point: Point, p1: Point, p2: Point): boolean {
+  const cross = (point.x - p1.x) * (p2.y - p1.y) - (point.y - p1.y) * (p2.x - p1.x);
+  if (Math.abs(cross) > 0.001) return false;
+  
+  return point.x >= Math.min(p1.x, p2.x) - 0.001 &&
+         point.x <= Math.max(p1.x, p2.x) + 0.001 &&
+         point.y >= Math.min(p1.y, p2.y) - 0.001 &&
+         point.y <= Math.max(p1.y, p2.y) + 0.001;
+}
+
+/**
+ * 检查两条边是否是共享边
+ */
+function isSharedEdge(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
+  const eps = 0.001;
+  const match1 = (Math.abs(p1.x - p3.x) < eps && Math.abs(p1.y - p3.y) < eps &&
+                  Math.abs(p2.x - p4.x) < eps && Math.abs(p2.y - p4.y) < eps);
+  const match2 = (Math.abs(p1.x - p4.x) < eps && Math.abs(p1.y - p4.y) < eps &&
+                  Math.abs(p2.x - p3.x) < eps && Math.abs(p2.y - p3.y) < eps);
+  return match1 || match2;
+}
+
+/**
+ * 严格检查两条线段是否相交（不包括端点）
+ */
+function doSegmentsIntersectStrict(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
+  const d1 = direction(p3, p4, p1);
+  const d2 = direction(p3, p4, p2);
+  const d3 = direction(p1, p2, p3);
+  const d4 = direction(p1, p2, p4);
+  
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Find nearest vertex within snap distance
  */
 export function findNearestVertex(
