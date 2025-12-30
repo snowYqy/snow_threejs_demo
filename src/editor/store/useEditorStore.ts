@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { Vertex, Wall, Room, Door, Window, ToolType, EditorError, ValidationResult } from '../types';
-import { EDITOR_CONFIG } from '../types';
 import { findAllCycles, buildGraph, calculatePolygonArea } from '../engine/geometry';
 import { validateAll, autoSnapVertex, autoCorrectDoorWindowPosition, inferRoomType } from '../engine/rules';
 import type { FloorPlanPreset } from '../data/presets';
