@@ -4,9 +4,19 @@
 html, body {
   @apply m-0 p-0 w-full h-full overflow-hidden;
   background-color: #F5F7FA;
+  /* 禁用移动端长按菜单和选择 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 #root {
   @apply w-full h-full m-0 p-0;
   background-color: #F5F7FA;
+}
+
+/* 禁用移动端上下文菜单 */
+* {
+  -webkit-tap-highlight-color: transparent;
 }

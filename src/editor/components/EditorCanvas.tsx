@@ -14,11 +14,17 @@ import { InteractionLayer } from './layers/InteractionLayer';
 const SNAP_DISTANCE = 15;
 const WALL_HIT_DISTANCE = 15;
 
+const MIN_SCALE = 0.2;
+const MAX_SCALE = 3;
+const SCALE_STEP = 0.1;
+
 export const EditorCanvas: React.FC = () => {
   const stageRef = useRef<Konva.Stage>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [snapVertex, setSnapVertex] = useState<Vertex | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
   
   const {
     vertices, walls, rooms, doors, windows, errors, activeTool, selectedIds, hoveredId,
@@ -43,8 +49,14 @@ export const EditorCanvas: React.FC = () => {
   const getPointerPosition = useCallback(() => {
     const stage = stageRef.current;
     if (!stage) return null;
-    return stage.getPointerPosition();
-  }, []);
+    const pointerPos = stage.getPointerPosition();
+    if (!pointerPos) return null;
+    // 转换为画布坐标（考虑缩放和平移）
+    return {
+      x: (pointerPos.x - position.x) / scale,
+      y: (pointerPos.y - position.y) / scale,
+    };
+  }, [scale, position]);
 
   const findWallAtPosition = useCallback((x: number, y: number): string | null => {
     let nearestWallId: string | null = null;
@@ -149,13 +161,75 @@ export const EditorCanvas: React.FC = () => {
     }
   }, [vertices, moveVertex]);
 
+  // 缩放处理
+  const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault();
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const oldScale = scale;
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+
+    const mousePointTo = {
+      x: (pointer.x - position.x) / oldScale,
+      y: (pointer.y - position.y) / oldScale,
+    };
+
+    const direction = e.evt.deltaY > 0 ? -1 : 1;
+    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, oldScale + direction * SCALE_STEP));
+
+    const newPos = {
+      x: pointer.x - mousePointTo.x * newScale,
+      y: pointer.y - mousePointTo.y * newScale,
+    };
+
+    setScale(newScale);
+    setPosition(newPos);
+  }, [scale, position]);
+
+  // 拖拽画布（按住空格或中键）
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const handleDragStart = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    // 中键拖拽
+    if ('button' in e.evt && e.evt.button === 1) {
+      setIsDragging(true);
+      const stage = stageRef.current;
+      if (stage) {
+        const pointer = stage.getPointerPosition();
+        if (pointer) setDragStart({ x: pointer.x - position.x, y: pointer.y - position.y });
+      }
+    }
+  }, [position]);
+
+  const handleDragMove = useCallback((_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!isDragging) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    const pointer = stage.getPointerPosition();
+    if (pointer) {
+      setPosition({ x: pointer.x - dragStart.x, y: pointer.y - dragStart.y });
+    }
+  }, [isDragging, dragStart]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
       <Stage ref={stageRef} width={canvasSize.width} height={canvasSize.height}
-        onMouseMove={handlePointerMove} onTouchMove={handlePointerMove}
+        scaleX={scale} scaleY={scale} x={position.x} y={position.y}
+        onTouchMove={handlePointerMove}
         onClick={handleClick} onTap={handleClick}
-        style={{ backgroundColor: '#fafafa' }}>
-        <GridLayer width={canvasSize.width} height={canvasSize.height} />
+        onWheel={handleWheel}
+        onMouseDown={handleDragStart}
+        onMouseMove={(e) => { handlePointerMove(); handleDragMove(e); }}
+        onMouseUp={handleDragEnd} onMouseLeave={handleDragEnd}
+        style={{ backgroundColor: '#fafafa', cursor: isDragging ? 'grabbing' : 'default' }}>
+        <GridLayer width={canvasSize.width / scale} height={canvasSize.height / scale} />
         <RoomLayer rooms={rooms} vertices={vertices} selectedIds={selectedIds} />
         <WallLayer walls={walls} vertices={vertices} errors={errors} selectedIds={selectedIds} hoveredId={hoveredId}
           onVertexDragMove={handleVertexDragMove} onVertexDragEnd={handleVertexDragEnd}
@@ -165,6 +239,25 @@ export const EditorCanvas: React.FC = () => {
           onDoorClick={(id) => setSelectedIds([id])} onWindowClick={(id) => setSelectedIds([id])} />
         <InteractionLayer drawingVertexId={drawingVertexId} previewPoint={previewPoint} vertices={vertices} snapVertex={snapVertex} />
       </Stage>
+      {/* 缩放控制按钮 */}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-2 bg-white rounded-lg shadow-md p-2">
+        <button
+          onClick={() => setScale(Math.min(MAX_SCALE, scale + SCALE_STEP))}
+          className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-lg font-bold"
+          title="放大"
+        >+</button>
+        <span className="text-xs text-center text-gray-600">{Math.round(scale * 100)}%</span>
+        <button
+          onClick={() => setScale(Math.max(MIN_SCALE, scale - SCALE_STEP))}
+          className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-lg font-bold"
+          title="缩小"
+        >−</button>
+        <button
+          onClick={() => { setScale(1); setPosition({ x: 0, y: 0 }); }}
+          className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-xs"
+          title="重置"
+        >1:1</button>
+      </div>
     </div>
   );
 };

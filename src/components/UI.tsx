@@ -1,6 +1,4 @@
 import { useHomeStore } from '../store/useHomeStore';
-import { useRecognitionStore } from '../store/useRecognitionStore';
-import ImageUploadPanel from './ImageUploadPanel';
 
 const DEVICE_NAMES: Record<string, string> = {
   light: '💡 灯',
@@ -23,29 +21,10 @@ const UI: React.FC = () => {
   const homeData = useHomeStore((state) => state.homeData);
   const toggleDevice = useHomeStore((state) => state.toggleDevice);
   const toggleAllDevicesInRoom = useHomeStore((state) => state.toggleAllDevicesInRoom);
-  const setHomeData = useHomeStore((state) => state.setHomeData);
-
-  // Recognition store
-  const {
-    uploadStatus,
-    uploadError,
-    previewUrl,
-    generatedHomeData,
-    setUploadedImage,
-    recognizeImage,
-    clearUpload,
-  } = useRecognitionStore();
 
   // 获取选中房间的设备
   const selectedRoomData = homeData?.rooms.find(r => r.id === selectedRoom);
   const devices = selectedRoomData?.devices ?? [];
-
-  // 应用识别结果到3D视图
-  const handleApplyRecognition = () => {
-    if (generatedHomeData) {
-      setHomeData(generatedHomeData);
-    }
-  };
 
   return (
     <div className="absolute inset-0 pointer-events-none z-10 font-sans">
@@ -56,7 +35,7 @@ const UI: React.FC = () => {
         </h1>
       </div>
 
-      {/* 左侧面板 - 操作说明 + 户型图识别 */}
+      {/* 左侧面板 - 操作说明 */}
       <div className="absolute top-5 left-5 space-y-4 pointer-events-auto">
         {/* 操作说明 */}
         <div className="p-4 bg-white/90 rounded-lg shadow-md max-w-[280px]">
@@ -69,78 +48,6 @@ const UI: React.FC = () => {
             <li>🖱️ 点击设备 - 开关</li>
           </ul>
         </div>
-
-        {/* 户型图识别面板 */}
-        <ImageUploadPanel
-          onImageSelect={setUploadedImage}
-          onRecognize={recognizeImage}
-          isProcessing={uploadStatus === 'processing'}
-          previewUrl={previewUrl}
-        />
-
-        {/* 识别结果操作 */}
-        {uploadStatus === 'success' && generatedHomeData && (
-          <div className="p-4 bg-white/95 rounded-lg shadow-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-green-500 text-lg">✓</span>
-              <span className="text-sm font-medium text-gray-800">
-                识别成功！
-              </span>
-            </div>
-            
-            {/* 房间列表 */}
-            <div className="mb-3 max-h-40 overflow-y-auto">
-              <p className="text-xs text-gray-500 mb-2">
-                检测到 {generatedHomeData.rooms.length} 个房间：
-              </p>
-              <div className="space-y-1">
-                {generatedHomeData.rooms.map((room) => (
-                  <div 
-                    key={room.id}
-                    className="flex items-center gap-2 text-xs p-1.5 bg-gray-50 rounded"
-                  >
-                    <span 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: room.color }}
-                    />
-                    <span className="font-medium">{room.name}</span>
-                    <span className="text-gray-400">
-                      {room.size[0].toFixed(1)}m × {room.size[1].toFixed(1)}m
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <button
-                onClick={handleApplyRecognition}
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-              >
-                🎨 应用到3D视图
-              </button>
-              <button
-                onClick={clearUpload}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
-              >
-                清除
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 错误提示 */}
-        {uploadStatus === 'error' && uploadError && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">❌ {uploadError}</p>
-            <button
-              onClick={clearUpload}
-              className="mt-2 text-xs text-red-500 hover:text-red-700"
-            >
-              重试
-            </button>
-          </div>
-        )}
       </div>
 
       {/* 设备控制面板 */}
