@@ -192,6 +192,30 @@ export const EditorCanvas: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  // 触摸手势状态
+  const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null);
+  const [lastTouchCenter, setLastTouchCenter] = useState<{ x: number; y: number } | null>(null);
+  const [isTouchPanning, setIsTouchPanning] = useState(false);
+
+  // 计算两点之间的距离
+  const getTouchDistance = (touches: TouchList) => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // 计算两点的中心
+  const getTouchCenter = (touches: TouchList) => {
+    if (touches.length < 2) {
+      return { x: touches[0].clientX, y: touches[0].clientY };
+    }
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2,
+    };
+  };
+
   const handleDragStart = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     // 中键拖拽
     if ('button' in e.evt && e.evt.button === 1) {
@@ -218,16 +242,104 @@ export const EditorCanvas: React.FC = () => {
     setIsDragging(false);
   }, []);
 
+  // 触摸开始
+  const handleTouchStart = useCallback((e: Konva.KonvaEventObject<TouchEvent>) => {
+    const touches = e.evt.touches;
+    
+    if (touches.length === 2) {
+      // 双指：准备缩放和平移
+      e.evt.preventDefault();
+      setLastTouchDistance(getTouchDistance(touches));
+      setLastTouchCenter(getTouchCenter(touches));
+      setIsTouchPanning(true);
+    } else if (touches.length === 1) {
+      // 单指：准备拖动画布
+      const container = containerRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const touchX = touches[0].clientX - rect.left;
+        const touchY = touches[0].clientY - rect.top;
+        setDragStart({ x: touchX - position.x, y: touchY - position.y });
+        setIsTouchPanning(true);
+      }
+    }
+  }, [position]);
+
+  // 触摸移动
+  const handleTouchMove = useCallback((e: Konva.KonvaEventObject<TouchEvent>) => {
+    const touches = e.evt.touches;
+    
+    if (touches.length === 2 && lastTouchDistance !== null && lastTouchCenter !== null) {
+      // 双指缩放和平移
+      e.evt.preventDefault();
+      
+      const newDistance = getTouchDistance(touches);
+      const newCenter = getTouchCenter(touches);
+      
+      // 计算缩放
+      const scaleChange = newDistance / lastTouchDistance;
+      const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * scaleChange));
+      
+      // 计算平移（基于中心点移动）
+      const container = containerRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const centerX = newCenter.x - rect.left;
+        const centerY = newCenter.y - rect.top;
+        const lastCenterX = lastTouchCenter.x - rect.left;
+        const lastCenterY = lastTouchCenter.y - rect.top;
+        
+        // 缩放中心点
+        const pointTo = {
+          x: (centerX - position.x) / scale,
+          y: (centerY - position.y) / scale,
+        };
+        
+        const newPos = {
+          x: centerX - pointTo.x * newScale + (centerX - lastCenterX),
+          y: centerY - pointTo.y * newScale + (centerY - lastCenterY),
+        };
+        
+        setScale(newScale);
+        setPosition(newPos);
+      }
+      
+      setLastTouchDistance(newDistance);
+      setLastTouchCenter(newCenter);
+    } else if (touches.length === 1 && isTouchPanning) {
+      // 单指拖动画布
+      const container = containerRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const touchX = touches[0].clientX - rect.left;
+        const touchY = touches[0].clientY - rect.top;
+        setPosition({ x: touchX - dragStart.x, y: touchY - dragStart.y });
+      }
+    }
+    
+    // 同时处理指针移动（用于工具交互）
+    handlePointerMove();
+  }, [lastTouchDistance, lastTouchCenter, scale, position, isTouchPanning, dragStart, handlePointerMove]);
+
+  // 触摸结束
+  const handleTouchEnd = useCallback(() => {
+    setLastTouchDistance(null);
+    setLastTouchCenter(null);
+    setIsTouchPanning(false);
+  }, []);
+
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
       <Stage ref={stageRef} width={canvasSize.width} height={canvasSize.height}
         scaleX={scale} scaleY={scale} x={position.x} y={position.y}
-        onTouchMove={handlePointerMove}
         onClick={handleClick} onTap={handleClick}
         onWheel={handleWheel}
         onMouseDown={handleDragStart}
         onMouseMove={(e) => { handlePointerMove(); handleDragMove(e); }}
         onMouseUp={handleDragEnd} onMouseLeave={handleDragEnd}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         style={{ backgroundColor: '#fafafa', cursor: isDragging ? 'grabbing' : 'default' }}>
         <GridLayer width={canvasSize.width / scale} height={canvasSize.height / scale} />
         <RoomLayer rooms={rooms} vertices={vertices} selectedIds={selectedIds} />
